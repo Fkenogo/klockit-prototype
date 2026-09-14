@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
 import { WorkSession } from '../../types';
 import { SessionAdjustmentModal } from '../modals/SessionAdjustmentModal';
-import { SmartShiftSuggestionModal } from './SmartShiftSuggestionModal';
 import {
   CalendarRange,
   Calendar,
@@ -13,11 +12,12 @@ import {
   Edit2,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   Info,
   CalendarDays,
   Repeat,
   Check,
+  PauseCircle,
+  Ban,
 } from 'lucide-react';
 
 export const WorkPlanningView: React.FC = () => {
@@ -36,18 +36,16 @@ export const WorkPlanningView: React.FC = () => {
   const [selectedSiteFilter, setSelectedSiteFilter] = useState<string>('all');
   const [selectedSessionForEdit, setSelectedSessionForEdit] = useState<WorkSession | null>(null);
   const [isAddAdHocOpen, setIsAddAdHocOpen] = useState(false);
-  const [isSmartShiftModalOpen, setIsSmartShiftModalOpen] = useState(false);
 
-  // New Ad-Hoc Session Form State
+  // New Work Session Form State
   const [adHocWorkerId, setAdHocWorkerId] = useState(workers[0]?.id || 'worker-1');
   const [adHocSiteId, setAdHocSiteId] = useState(sites[0]?.id || 'site-1');
   const [adHocDate, setAdHocDate] = useState(selectedDate);
   const [adHocStart, setAdHocStart] = useState('08:00');
   const [adHocEnd, setAdHocEnd] = useState('17:00');
-  const [adHocNote, setAdHocNote] = useState('Exceptional coverage session');
+  const [adHocNote, setAdHocNote] = useState('Individual work session');
 
   // Multi-day week period for planning (showing current week Mon-Fri)
-  // Let's generate dates for 2026-09-14 to 2026-09-18
   const weekDays = [
     { date: '2026-09-14', label: 'Mon 14 Sep' },
     { date: '2026-09-15', label: 'Tue 15 Sep' },
@@ -77,13 +75,13 @@ export const WorkPlanningView: React.FC = () => {
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Work Planning & Sessions</h1>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Work Planning</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs border border-indigo-200">
-              Coherent Planning
+              Schedules & Sessions
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Manage recurring attendance patterns and individual daily work sessions when circumstances change.
+            Manage recurring patterns and individual work sessions. Click any session in the grid to edit time, site, or status.
           </p>
         </div>
 
@@ -117,38 +115,26 @@ export const WorkPlanningView: React.FC = () => {
           </div>
 
           <button
-            id="smart-shift-ai-btn"
-            onClick={() => setIsSmartShiftModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+            id="add-work-session-btn"
+            onClick={() => setIsAddAdHocOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Smart Shift AI</span>
+            <Plus className="w-4 h-4" />
+            <span>Add Work Session</span>
           </button>
-
-          {activeTab === 'sessions' && (
-            <button
-              id="add-exceptional-session-btn"
-              onClick={() => setIsAddAdHocOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Ad-Hoc Session</span>
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Distinction Explanatory Banner (Brief Section 8 & 9 mandate) */}
+      {/* Planning Architecture Overview */}
       <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-4 text-xs text-indigo-950 flex items-start gap-3 shadow-2xs">
         <Info className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-bold text-indigo-900">
-            Klockit Planning Architecture: Recurring Patterns vs. Individual Sessions
+            Recurring Patterns vs. Individual Sessions
           </p>
           <p className="text-indigo-800 text-[11px] leading-relaxed">
-            A Worker’s normal work pattern (e.g. Monday to Friday 08:00–17:00 at Main Workshop) automatically generates expected Work Sessions.
-            When real life changes (e.g. temporary shift override, adjusted hours, or site transfer), 
-            <strong> edit the specific Work Session</strong> directly. The worker's underlying recurring pattern remains completely intact.
+            A Worker’s normal recurring pattern (e.g. Monday to Friday 08:00–17:00 at Main Workshop) automatically generates expected Work Sessions.
+            When circumstances change, click any session directly in the grid below to adjust date, time, site, or suspend/cancel without altering the underlying weekly template.
           </p>
         </div>
       </div>
@@ -245,38 +231,60 @@ export const WorkPlanningView: React.FC = () => {
                                     setAdHocSiteId(worker.normalSiteId);
                                     setIsAddAdHocOpen(true);
                                   }}
-                                  className="w-full py-3 rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all flex items-center justify-center gap-1"
+                                  className="w-full py-3 rounded-lg border border-dashed border-slate-200 text-[10px] text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all flex items-center justify-center gap-1 group"
+                                  title="Click to schedule work session for this day"
                                 >
-                                  <Plus className="w-3 h-3" />
+                                  <Plus className="w-3 h-3 group-hover:scale-110 transition-transform" />
                                   <span>Off</span>
                                 </button>
                               ) : (
                                 <div className="space-y-1.5">
                                   {matchingSessions.map((sess) => {
                                     const sessSite = sites.find((s) => s.id === sess.siteId);
+                                    const isCancelled = sess.status === 'cancelled';
+                                    const isSuspended = sess.status === 'suspended';
+
                                     return (
                                       <button
                                         key={sess.id}
                                         onClick={() => setSelectedSessionForEdit(sess)}
-                                        className={`w-full text-left p-2 rounded-xl border transition-all ${
-                                          sess.status === 'cancelled'
-                                            ? 'bg-slate-100 border-slate-200 opacity-60 text-slate-400'
+                                        className={`w-full text-left p-2.5 rounded-xl border transition-all cursor-pointer group relative ${
+                                          isCancelled
+                                            ? 'bg-rose-50/60 border-rose-200 text-rose-800 opacity-75 hover:opacity-100 hover:border-rose-300'
+                                            : isSuspended
+                                            ? 'bg-amber-50/80 border-amber-300 text-amber-950 hover:border-amber-400'
                                             : sess.isExceptional
-                                            ? 'bg-amber-50/80 border-amber-300 text-amber-950 shadow-2xs hover:border-amber-400'
+                                            ? 'bg-indigo-50/70 border-indigo-300 text-indigo-950 shadow-2xs hover:border-indigo-400'
                                             : 'bg-white border-slate-200 text-slate-800 shadow-2xs hover:border-indigo-400 hover:shadow-xs'
                                         }`}
+                                        title="Click to manage, adjust, suspend, or cancel session"
                                       >
                                         <div className="flex items-center justify-between">
-                                          <span className="font-mono font-bold text-[11px] text-slate-900">
+                                          <span className={`font-mono font-bold text-[11px] ${isCancelled ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                                             {sess.startTime} - {sess.endTime}
                                           </span>
-                                          {sess.isExceptional && (
-                                            <span className="text-[9px] px-1 rounded bg-amber-200 text-amber-900 font-semibold">
-                                              Custom
-                                            </span>
-                                          )}
+                                          <div className="flex items-center gap-1">
+                                            {isCancelled ? (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 font-bold uppercase">
+                                                Cancelled
+                                              </span>
+                                            ) : isSuspended ? (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold uppercase">
+                                                Suspended
+                                              </span>
+                                            ) : sess.isExceptional ? (
+                                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 font-semibold">
+                                                Adjusted
+                                              </span>
+                                            ) : (
+                                              <span className="text-[9px] px-1 py-0.2 rounded text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                <Edit2 className="w-2.5 h-2.5 text-indigo-500" />
+                                                Edit
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
-                                        <div className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                                        <div className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-1">
                                           <Building2 className="w-3 h-3 text-slate-400" />
                                           <span>{sessSite?.name}</span>
                                         </div>
@@ -367,17 +375,17 @@ export const WorkPlanningView: React.FC = () => {
         </div>
       )}
 
-      {/* Session Adjustment Modal */}
+      {/* Contextual Session Management Modal */}
       <SessionAdjustmentModal
         session={selectedSessionForEdit}
         onClose={() => setSelectedSessionForEdit(null)}
       />
 
-      {/* Ad-Hoc Session Modal */}
+      {/* Add Work Session Modal */}
       {isAddAdHocOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Add Exceptional / Ad-Hoc Session</h3>
+            <h3 className="text-base font-bold text-slate-900">Add Work Session</h3>
             <p className="text-xs text-slate-500">
               Schedule an individual session on a specific date without modifying the worker's recurring pattern.
             </p>
@@ -407,7 +415,7 @@ export const WorkPlanningView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Site Location</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Facility Site Location</label>
                   <select
                     value={adHocSiteId}
                     onChange={(e) => setAdHocSiteId(e.target.value)}
@@ -470,11 +478,6 @@ export const WorkPlanningView: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Smart Shift AI Suggestion Modal */}
-      <SmartShiftSuggestionModal
-        isOpen={isSmartShiftModalOpen}
-        onClose={() => setIsSmartShiftModalOpen(false)}
-      />
     </div>
   );
 };

@@ -18,7 +18,6 @@ import {
   User,
   ArrowRight,
   AlertOctagon,
-  ArrowLeftRight,
 } from 'lucide-react';
 
 export const WorkerWorkspace: React.FC = () => {
@@ -28,8 +27,6 @@ export const WorkerWorkspace: React.FC = () => {
     workSessions,
     attendance,
     exceptions,
-    shiftSwapRequests,
-    proposeShiftSwap,
     selectedWorkerId,
     setSelectedWorkerId,
     recordWorkerArrival,
@@ -37,19 +34,11 @@ export const WorkerWorkspace: React.FC = () => {
     setCurrentRole,
   } = useKlockit();
 
-  const [activeWorkerTab, setActiveWorkerTab] = useState<'workspace' | 'schedule' | 'swaps' | 'history'>('workspace');
+  const [activeWorkerTab, setActiveWorkerTab] = useState<'workspace' | 'schedule' | 'history'>('workspace');
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [showManualCodeModal, setShowManualCodeModal] = useState(false);
   const [manualCodeInput, setManualCodeInput] = useState('');
   const [selectedSiteForManual, setSelectedSiteForManual] = useState(sites[0]?.id || 'site-1');
-
-  // Shift Swap Proposal State
-  const [showSwapModal, setShowSwapModal] = useState(false);
-  const [swapOriginalSessionId, setSwapOriginalSessionId] = useState('');
-  const [swapTargetWorkerId, setSwapTargetWorkerId] = useState(
-    workers.find((w) => w.id !== selectedWorkerId)?.id || ''
-  );
-  const [swapReason, setSwapReason] = useState('Personal scheduling conflict');
 
   const worker = workers.find((w) => w.id === selectedWorkerId) || workers[0];
   const normalSite = sites.find((s) => s.id === worker.normalSiteId);
@@ -75,31 +64,9 @@ export const WorkerWorkspace: React.FC = () => {
     .filter((ws) => ws.workerId === worker.id && ws.date >= '2026-09-14' && ws.status !== 'cancelled')
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Swaps involving this worker
-  const mySwaps = shiftSwapRequests.filter(
-    (s) => s.requesterWorkerId === worker.id || s.targetWorkerId === worker.id
-  );
-  const pendingMySwaps = mySwaps.filter((s) => s.status === 'pending');
-
-  const handleOpenSwap = (sessionId?: string) => {
-    if (sessionId) {
-      setSwapOriginalSessionId(sessionId);
-    } else if (workerUpcoming.length > 0) {
-      setSwapOriginalSessionId(workerUpcoming[0].id);
-    }
-    setShowSwapModal(true);
-  };
-
-  const handleSubmitSwap = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!swapOriginalSessionId || !swapTargetWorkerId) return;
-    proposeShiftSwap(swapOriginalSessionId, swapTargetWorkerId, swapReason);
-    setShowSwapModal(false);
-    setActiveWorkerTab('swaps');
-  };
-
-  // Active open presence
-  const isPresent = todayAttendance?.status === 'present' || todayAttendance?.status === 'pending_review';
+  // Distinct presence states
+  const isPresent = todayAttendance?.status === 'present';
+  const isPendingReview = todayAttendance?.status === 'pending_review';
   const isCompleted = todayAttendance?.status === 'completed';
 
   // Worker's history
@@ -108,7 +75,7 @@ export const WorkerWorkspace: React.FC = () => {
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const handleSimulateQrScan = (targetSiteId: string) => {
-    const res = recordWorkerArrival(worker.id, targetSiteId, 'qr');
+    recordWorkerArrival(worker.id, targetSiteId, 'qr');
     setShowScannerModal(false);
   };
 
@@ -150,15 +117,21 @@ export const WorkerWorkspace: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => setCurrentRole('manager')}
-          className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2.5 py-1.5 rounded-xl bg-indigo-50 border border-indigo-100"
-        >
-          Exit to Manager
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+            Prototype Demo
+          </span>
+          <button
+            onClick={() => setCurrentRole('manager')}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2.5 py-1.5 rounded-xl bg-indigo-50 border border-indigo-100 transition-colors"
+            title="Switch back to Manager Workspace in this interactive prototype"
+          >
+            Exit to Manager
+          </button>
+        </div>
       </div>
 
-      {/* Navigation tabs for Worker */}
+      {/* Navigation tabs for Worker: simple 3 tabs */}
       <div className="flex bg-slate-200/80 p-1 rounded-2xl text-xs font-bold text-slate-600">
         <button
           id="worker-tab-action"
@@ -183,22 +156,6 @@ export const WorkerWorkspace: React.FC = () => {
           My Schedule
         </button>
         <button
-          id="worker-tab-swaps"
-          onClick={() => setActiveWorkerTab('swaps')}
-          className={`flex-1 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 ${
-            activeWorkerTab === 'swaps'
-              ? 'bg-white text-slate-900 shadow-xs'
-              : 'hover:text-slate-900'
-          }`}
-        >
-          <span>Shift Swaps</span>
-          {pendingMySwaps.length > 0 && (
-            <span className="w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-black flex items-center justify-center">
-              {pendingMySwaps.length}
-            </span>
-          )}
-        </button>
-        <button
           id="worker-tab-history"
           onClick={() => setActiveWorkerTab('history')}
           className={`flex-1 py-2.5 rounded-xl transition-all text-center ${
@@ -211,7 +168,7 @@ export const WorkerWorkspace: React.FC = () => {
         </button>
       </div>
 
-      {/* Warning if unclosed departure from previous session (Brief Section 15) */}
+      {/* Warning if unclosed departure from previous session */}
       {missingYesterday && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-5 text-xs text-amber-950 space-y-2 shadow-2xs">
           <div className="flex items-center gap-2 font-bold text-amber-900 text-sm">
@@ -240,7 +197,13 @@ export const WorkerWorkspace: React.FC = () => {
                 </h2>
               </div>
 
-              {isPresent ? (
+              {/* Precise presence badge - NEVER show Presence Confirmed if pending review */}
+              {isPendingReview ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  Arrival Recorded (Pending Review)
+                </span>
+              ) : isPresent ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   At Work Now
@@ -277,24 +240,39 @@ export const WorkerWorkspace: React.FC = () => {
               </div>
             </div>
 
-            {/* If currently present */}
+            {/* If arrival recorded via 6-digit code and awaiting Manager confirmation */}
+            {isPendingReview && (
+              <div className="p-4 bg-amber-50/90 border border-amber-300 rounded-2xl text-xs space-y-2.5">
+                <div className="flex items-center justify-between text-amber-950 font-bold">
+                  <span className="flex items-center gap-1.5 text-amber-900">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    Arrival recorded — awaiting Manager review
+                  </span>
+                  <span className="font-mono text-amber-800 font-bold">{todayAttendance?.arrivalTime} Logged</span>
+                </div>
+                <p className="text-amber-900 text-[11px] leading-relaxed">
+                  You recorded your arrival using the backup 6-digit site code. Your attendance is not yet confirmed until your Manager verifies physical presence on-site.
+                </p>
+                <div className="p-2.5 bg-white/80 border border-amber-200 rounded-xl text-amber-950 text-[11px] font-medium flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>Manual code logged for {sessionSite?.name || normalSite?.name}. Needs Attention item created for Operations.</span>
+                </div>
+              </div>
+            )}
+
+            {/* If presence confirmed via trusted QR code */}
             {isPresent && (
               <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-xs space-y-2">
                 <div className="flex items-center justify-between text-emerald-950 font-bold">
-                  <span>Presence Confirmed</span>
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Presence Confirmed
+                  </span>
                   <span className="font-mono text-emerald-700">{todayAttendance?.arrivalTime} Logged</span>
                 </div>
                 <p className="text-emerald-800 text-[11px]">
-                  {todayAttendance?.arrivalMethod === 'qr'
-                    ? `Physical presence verified via Site QR scan at ${sessionSite?.name}.`
-                    : `Entered 6-digit site code. Awaiting quick Manager confirmation.`}
+                  Physical presence verified via Site QR scan at {sessionSite?.name || normalSite?.name}.
                 </p>
-                {todayAttendance?.status === 'pending_review' && (
-                  <div className="p-2 bg-amber-100/70 border border-amber-200 rounded-xl text-amber-900 text-[11px] font-medium flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                    <span>Manager confirmation in progress for manual code entry.</span>
-                  </div>
-                )}
               </div>
             )}
 
@@ -308,14 +286,14 @@ export const WorkerWorkspace: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-blue-800 text-[11px]">
-                  Thank you! Your full attendance record has been finalized and securely stored.
+                  Thank you! Your attendance record has been finalized.
                 </p>
               </div>
             )}
 
             {/* PRIMARY ACTION BUTTONS */}
             <div className="pt-2">
-              {!isPresent && !isCompleted && (
+              {!isPresent && !isPendingReview && !isCompleted && (
                 <div className="space-y-3">
                   <button
                     id="worker-scan-qr-btn"
@@ -332,12 +310,12 @@ export const WorkerWorkspace: React.FC = () => {
                     className="w-full py-2.5 px-4 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-200"
                   >
                     <KeyRound className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Camera broken? Enter 6-digit Site Code</span>
+                    <span>Camera unavailable? Enter 6-digit Site Code</span>
                   </button>
                 </div>
               )}
 
-              {isPresent && (
+              {(isPresent || isPendingReview) && (
                 <button
                   id="worker-record-departure-btn"
                   onClick={handleDeparture}
@@ -360,13 +338,6 @@ export const WorkerWorkspace: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900">Upcoming Planned Shifts</h3>
               <span className="text-xs text-slate-400">Next 14 Days</span>
             </div>
-            <button
-              onClick={() => handleOpenSwap()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition-colors"
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>Request Swap</span>
-            </button>
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -398,18 +369,8 @@ export const WorkerWorkspace: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-right font-mono font-bold text-slate-800">
-                      {sess.startTime} – {sess.endTime}
-                    </div>
-                    <button
-                      onClick={() => handleOpenSwap(sess.id)}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-1"
-                      title="Propose to swap this shift with a colleague"
-                    >
-                      <ArrowLeftRight className="w-3 h-3" />
-                      <span>Swap</span>
-                    </button>
+                  <div className="text-right font-mono font-bold text-slate-800">
+                    {sess.startTime} – {sess.endTime}
                   </div>
                 </div>
               );
@@ -418,121 +379,7 @@ export const WorkerWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: SHIFT SWAP PROPOSALS */}
-      {activeWorkerTab === 'swaps' && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Shift Swap Proposals</h3>
-              <span className="text-xs text-slate-400">Request shift trades with colleagues for Manager approval</span>
-            </div>
-            <button
-              onClick={() => handleOpenSwap()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors"
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>Propose Shift Swap</span>
-            </button>
-          </div>
-
-          {mySwaps.length === 0 ? (
-            <div className="py-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 mx-auto">
-                <ArrowLeftRight className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-900">No shift swaps requested yet</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  Need to adjust your hours? You can propose to exchange any upcoming scheduled shift with an eligible colleague.
-                </p>
-              </div>
-              <button
-                onClick={() => handleOpenSwap()}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
-              >
-                Propose Your First Swap
-              </button>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {mySwaps.map((swap) => {
-                const isRequester = swap.requesterWorkerId === worker.id;
-                const partnerWorker = workers.find(
-                  (w) => w.id === (isRequester ? swap.targetWorkerId : swap.requesterWorkerId)
-                );
-                const originalSession = workSessions.find((s) => s.id === swap.originalSessionId);
-                const shiftSite = sites.find((s) => s.id === originalSession?.siteId);
-
-                return (
-                  <div key={swap.id} className="py-4 space-y-2 text-xs">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            swap.status === 'approved'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : swap.status === 'denied'
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
-                          }`}
-                        >
-                          {swap.status === 'pending'
-                            ? 'AWAITING MANAGER REVIEW'
-                            : swap.status.toUpperCase()}
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          Submitted {swap.createdAt}
-                        </span>
-                      </div>
-
-                      <span className="font-mono text-xs font-bold text-slate-700">
-                        Shift: {originalSession?.date || 'Scheduled'}
-                      </span>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-800">
-                            {isRequester ? 'Trade offered to:' : 'Trade offered by:'}
-                          </span>
-                          <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                            <span className={`w-5 h-5 rounded-full ${partnerWorker?.avatarBg || 'bg-slate-400'} text-white text-[10px] flex items-center justify-center font-bold`}>
-                              {partnerWorker?.initials || '??'}
-                            </span>
-                            {partnerWorker?.name} ({partnerWorker?.role})
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          Facility: {shiftSite?.name || 'Site'} · Hours: {originalSession?.startTime} - {originalSession?.endTime}
-                        </p>
-                      </div>
-
-                      <div className="text-right sm:max-w-xs">
-                        <span className="text-[11px] text-slate-500 block">Reason:</span>
-                        <span className="font-medium text-slate-800 text-[11px] italic">
-                          "{swap.reason}"
-                        </span>
-                      </div>
-                    </div>
-
-                    {swap.reviewNote && (
-                      <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] flex items-center gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                        <span>
-                          <strong>Manager note:</strong> {swap.reviewNote} ({swap.reviewedAt})
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 4: MY HISTORY */}
+      {/* TAB 3: MY HISTORY */}
       {activeWorkerTab === 'history' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -553,12 +400,16 @@ export const WorkerWorkspace: React.FC = () => {
                           ? 'bg-blue-50 text-blue-700 border border-blue-200'
                           : rec.status === 'present'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : rec.status === 'pending_review'
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
                           : rec.status === 'missing_departure'
                           ? 'bg-rose-50 text-rose-700 border border-rose-200'
                           : 'bg-slate-100 text-slate-700'
                       }`}
                     >
-                      {rec.status.replace('_', ' ').toUpperCase()}
+                      {rec.status === 'pending_review'
+                        ? 'PENDING REVIEW'
+                        : rec.status.replace('_', ' ').toUpperCase()}
                     </span>
                   </div>
 
@@ -583,7 +434,7 @@ export const WorkerWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* Interactive QR Scanner Simulator Modal (Brief Section 12) */}
+      {/* Interactive QR Scanner Simulator Modal */}
       {showScannerModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden text-white p-6 text-center space-y-5 shadow-2xl">
@@ -614,7 +465,7 @@ export const WorkerWorkspace: React.FC = () => {
               Point your camera at the physical Klockit placard mounted at your work location.
             </p>
 
-            {/* Quick Simulate Buttons for All 3 Sites */}
+            {/* Quick Simulate Buttons for All Sites */}
             <div className="space-y-2 pt-2 border-t border-slate-800">
               <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
                 Simulate Scanning Placard at:
@@ -634,7 +485,7 @@ export const WorkerWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* Manual 6-Digit Code Fallback Modal (Brief Section 13) */}
+      {/* Manual 6-Digit Code Fallback Modal */}
       {showManualCodeModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden text-slate-900 p-6 space-y-4 shadow-2xl border border-slate-200">
@@ -651,9 +502,8 @@ export const WorkerWorkspace: React.FC = () => {
               </button>
             </div>
 
-            {/* Calm explanation without accusatory tone (Brief Section 13 mandate) */}
-            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[11px] text-blue-900 leading-relaxed">
-              <strong>How this works:</strong> When you enter the 6-digit site code manually, Klockit logs your arrival immediately and notifies your Manager for quick review.
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+              <strong>Notice:</strong> When you enter the 6-digit site code manually, Klockit logs your arrival as <em>awaiting Manager review</em>. Your attendance requires manager verification before it is confirmed.
             </div>
 
             <form onSubmit={handleManualCodeSubmit} className="space-y-3">
@@ -666,7 +516,7 @@ export const WorkerWorkspace: React.FC = () => {
                 >
                   {sites.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} (Code: {s.code})
+                      {s.name} (Placard Code: {s.code})
                     </option>
                   ))}
                 </select>
@@ -698,127 +548,7 @@ export const WorkerWorkspace: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
                 >
-                  Submit Arrival
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* SHIFT SWAP PROPOSAL MODAL */}
-      {showSwapModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
-                  <ArrowLeftRight className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm text-slate-900">Propose Shift Swap</h3>
-                  <p className="text-[11px] text-slate-500">Request to exchange an upcoming shift</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSwapModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitSwap} className="space-y-4">
-              {/* Select My Shift */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  1. Which of your scheduled shifts do you want to swap?
-                </label>
-                {workerUpcoming.length === 0 ? (
-                  <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
-                    No upcoming shifts scheduled to swap.
-                  </p>
-                ) : (
-                  <select
-                    id="swap-shift-select"
-                    required
-                    value={swapOriginalSessionId}
-                    onChange={(e) => setSwapOriginalSessionId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {workerUpcoming.map((sess) => {
-                      const site = sites.find((s) => s.id === sess.siteId);
-                      return (
-                        <option key={sess.id} value={sess.id}>
-                          {sess.date} ({sess.startTime} - {sess.endTime}) @ {site?.name}
-                        </option>
-                      );
-                    })}
-                  </select>
-                )}
-              </div>
-
-              {/* Select Colleague */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  2. Who do you want to swap with?
-                </label>
-                <select
-                  id="swap-target-worker-select"
-                  required
-                  value={swapTargetWorkerId}
-                  onChange={(e) => setSwapTargetWorkerId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  {workers
-                    .filter((w) => w.id !== worker.id && w.status === 'active')
-                    .map((w) => {
-                      const wSite = sites.find((s) => s.id === w.normalSiteId);
-                      return (
-                        <option key={w.id} value={w.id}>
-                          {w.name} — {w.role} ({wSite?.name})
-                        </option>
-                      );
-                    })}
-                </select>
-              </div>
-
-              {/* Reason */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  3. Reason for shift exchange
-                </label>
-                <textarea
-                  id="swap-reason-input"
-                  required
-                  rows={2}
-                  value={swapReason}
-                  onChange={(e) => setSwapReason(e.target.value)}
-                  placeholder="e.g. Medical appointment, family obligation, transport schedule..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl text-[11px] text-amber-900 leading-relaxed">
-                <strong>Next steps:</strong> Your request will be forwarded immediately to Operations Management via the Exceptions Queue. If approved, both work schedules will automatically update.
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSwapModal(false)}
-                  className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="submit-swap-btn"
-                  type="submit"
-                  disabled={workerUpcoming.length === 0}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  <ArrowLeftRight className="w-3.5 h-3.5" />
-                  <span>Send Proposal</span>
+                  Submit Arrival for Review
                 </button>
               </div>
             </form>

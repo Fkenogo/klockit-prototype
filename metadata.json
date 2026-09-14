@@ -2,5 +2,7 @@
   "name": "Klockit - Workforce Attendance & Work Presence",
   "description": "Workforce attendance and work-presence platform for small and medium-sized organisations to know who was at work each day.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

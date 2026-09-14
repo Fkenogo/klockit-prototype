@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
-import { AttendanceHeatmapWidget } from './AttendanceHeatmapWidget';
 import {
   Users,
   UserCheck,
@@ -142,7 +141,7 @@ export const TodayAttendanceView: React.FC = () => {
             </h1>
             {selectedDate === '2026-09-14' && (
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200">
-                Live Operations
+                Live Attendance
               </span>
             )}
           </div>
@@ -285,9 +284,6 @@ export const TodayAttendanceView: React.FC = () => {
           <p className="text-[11px] text-slate-500 opacity-80 mt-1">Requires review</p>
         </button>
       </div>
-
-      {/* 30-Day Site Occupancy Density Heatmap */}
-      <AttendanceHeatmapWidget />
 
       {/* Filter and Search Toolbar */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
