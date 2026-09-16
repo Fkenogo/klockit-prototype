@@ -77,6 +77,14 @@ interface KlockitContextType {
     method: ArrivalMethod,
     siteCodeEntered?: string
   ) => { success: boolean; message: string; requiresReview?: boolean };
+
+  recordManualArrivalByManager: (
+    workerId: string,
+    siteId: string,
+    arrivalTime: string,
+    note?: string,
+    date?: string
+  ) => { success: boolean; message: string };
   
   recordWorkerDeparture: (
     workerId: string,
@@ -431,6 +439,72 @@ export const KlockitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         requiresReview: true,
       };
     }
+  };
+
+  // Manager manually recording arrival for worker who forgot device
+  const recordManualArrivalByManager = (
+    workerId: string,
+    siteId: string,
+    arrivalTime: string,
+    note?: string,
+    date?: string
+  ) => {
+    const targetDate = date || selectedDate || TODAY_DATE;
+    const worker = workers.find((w) => w.id === workerId);
+    const site = sites.find((s) => s.id === siteId);
+    const matchingSession = workSessions.find(
+      (s) => s.workerId === workerId && s.date === targetDate && s.status !== 'cancelled'
+    );
+
+    const newAttId = `att-mgr-${Date.now()}`;
+    const newRecord: AttendanceRecord = {
+      id: newAttId,
+      workerId,
+      workSessionId: matchingSession?.id,
+      siteId,
+      date: targetDate,
+      arrivalTime,
+      arrivalMethod: 'manager_entry',
+      status: 'present',
+      needsAttention: false,
+      notes: note || 'Manually logged by Manager — worker forgot mobile device.',
+      managerCorrection: {
+        correctedBy: 'Operations Manager',
+        correctedAt: new Date().toISOString(),
+        reason: note || 'Worker forgot mobile device — manual verification on site',
+        effectiveArrivalTime: arrivalTime,
+        originalValue: 'None (Device unavailable)',
+      },
+    };
+
+    // Auto-resolve any unresolved manual_site_code exception if one was pending for this worker on this date
+    setExceptions((prev) =>
+      prev.map((exc) => {
+        if (exc.workerId === workerId && exc.date === targetDate && exc.status === 'unresolved') {
+          return {
+            ...exc,
+            status: 'resolved',
+            resolvedAt: new Date().toISOString(),
+            resolvedBy: 'Operations Manager',
+            resolutionDecision: `Resolved via manual arrival entry at ${arrivalTime}. Note: ${note || 'Worker forgot mobile device'}`,
+          };
+        }
+        return exc;
+      })
+    );
+
+    setAttendance((prev) => [newRecord, ...prev.filter((a) => !(a.workerId === workerId && a.date === targetDate))]);
+
+    showToast(
+      'Manual Arrival Logged',
+      `Marked ${worker?.name || 'Worker'} as present at ${site?.name || 'site'} (${arrivalTime}).`,
+      'success'
+    );
+
+    return {
+      success: true,
+      message: `Recorded arrival for ${worker?.name || 'Worker'} at ${arrivalTime}.`,
+    };
   };
 
   // Record departure
@@ -862,6 +936,7 @@ export const KlockitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         clearToast,
         dismissToast,
         recordWorkerArrival,
+        recordManualArrivalByManager,
         recordWorkerDeparture,
         resolveException,
         adjustWorkSession,

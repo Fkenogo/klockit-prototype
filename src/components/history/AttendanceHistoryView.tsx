@@ -30,6 +30,7 @@ export const AttendanceHistoryView: React.FC = () => {
     sites,
     workSessions,
     setInspectedWorkerId,
+    setActiveManagerTab,
     showToast,
   } = useKlockit();
 
@@ -358,8 +359,53 @@ export const AttendanceHistoryView: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredAttendance.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                    No historic attendance records match your filter criteria.
+                  <td colSpan={7} className="px-6 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-md mx-auto">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                        <History className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        {attendance.length === 0 ? 'No Attendance History Recorded' : 'No Records Match Current Filters'}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                        {attendance.length === 0
+                          ? 'Attendance events appear automatically as workers check in via Site QR, fallback code, or manual manager log.'
+                          : 'No attendance records match your current date range and filter parameters. Try expanding your date range or clearing filters.'}
+                      </p>
+                      <div className="mt-4 flex items-center gap-2.5">
+                        {attendance.length === 0 ? (
+                          <button
+                            id="history-empty-go-today-btn"
+                            onClick={() => setActiveManagerTab('today')}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                          >
+                            <span>Go to Today's Attendance</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              id="history-reset-filters-btn"
+                              onClick={() => {
+                                setDatePreset('this_month');
+                                setSiteFilter('all');
+                                setWorkerFilter('all');
+                                setStatusFilter('all');
+                                setSearchQuery('');
+                              }}
+                              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
+                            >
+                              Reset All Filters
+                            </button>
+                            <button
+                              onClick={() => setActiveManagerTab('today')}
+                              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                            >
+                              View Live Today
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
