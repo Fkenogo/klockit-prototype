@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { effectiveArrival, effectiveDeparture } from '../../utils/attendance';
 import { useKlockit } from '../../context/KlockitContext';
 import {
   X,
@@ -6,8 +7,6 @@ import {
   Building2,
   Calendar,
   Clock,
-  Mail,
-  Phone,
   ShieldCheck,
   AlertTriangle,
   History,
@@ -42,11 +41,9 @@ export const WorkerProfileModal: React.FC = () => {
   const normalSite = sites.find((s) => s.id === worker.normalSiteId);
   const pattern = patterns.find((p) => p.id === worker.workPatternId);
 
-  // Edit state
+  // Edit state — presence identity only (no HR contact fields in Klockit).
   const [name, setName] = useState(worker.name);
   const [role, setRole] = useState(worker.role);
-  const [email, setEmail] = useState(worker.email);
-  const [phone, setPhone] = useState(worker.phone);
   const [normalSiteId, setNormalSiteId] = useState(worker.normalSiteId);
   const [workPatternId, setWorkPatternId] = useState(worker.workPatternId);
 
@@ -67,8 +64,6 @@ export const WorkerProfileModal: React.FC = () => {
     updateWorker(worker.id, {
       name,
       role,
-      email,
-      phone,
       normalSiteId,
       workPatternId,
     });
@@ -227,22 +222,13 @@ export const WorkerProfileModal: React.FC = () => {
                     <p className="font-bold text-slate-900 text-sm">{worker.name}</p>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-slate-500">Role / Designation</span>
+                    <span className="text-slate-500">Role at site</span>
                     <p className="font-bold text-slate-900 text-sm">{worker.role}</p>
+                    <p className="text-[11px] text-slate-400">Used to recognise who is present — not an HR job title.</p>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-slate-500">Email Address</span>
-                    <p className="font-medium text-slate-900 flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      {worker.email}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-slate-500">Contact Telephone</span>
-                    <p className="font-medium text-slate-900 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      {worker.phone}
-                    </p>
+                    <span className="text-slate-500">Worker reference</span>
+                    <p className="font-mono font-bold text-slate-900 text-sm">{worker.workerRef}</p>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                     <span className="text-slate-500">Assigned Normal Site</span>
@@ -271,31 +257,11 @@ export const WorkerProfileModal: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Role</label>
+                      <label className="block font-semibold text-slate-700 mb-1">Role at site</label>
                       <input
                         type="text"
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Phone</label>
-                      <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
                       />
                     </div>
@@ -432,14 +398,14 @@ export const WorkerProfileModal: React.FC = () => {
                             <span className="font-medium text-slate-600">{recSite?.name}</span>
                           </div>
                           <div className="text-[11px] text-slate-500 mt-0.5">
-                            Arrival: <strong className="text-indigo-700 font-mono">{rec.arrivalTime || 'None'}</strong>
+                            Arrival: <strong className="text-indigo-700 font-mono">{effectiveArrival(rec) || rec.arrivalTime || 'None'}</strong>
                             {rec.arrivalMethod && ` (${rec.arrivalMethod.toUpperCase()})`}
                             {' · '}
-                            Departure: <strong className="text-slate-800 font-mono">{rec.departureTime || 'Not recorded'}</strong>
+                            Departure: <strong className="text-slate-800 font-mono">{effectiveDeparture(rec) || rec.departureTime || 'Not recorded'}</strong>
                           </div>
-                          {rec.managerCorrection && (
+                          {rec.corrections && rec.corrections.length > 0 && (
                             <p className="text-[10px] text-indigo-600 mt-1">
-                              Correction: {rec.managerCorrection.reason}
+                              Correction: {rec.corrections[rec.corrections.length - 1].reason}
                             </p>
                           )}
                         </div>

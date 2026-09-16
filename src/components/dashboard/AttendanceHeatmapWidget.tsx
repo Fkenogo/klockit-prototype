@@ -181,7 +181,7 @@ export const AttendanceHeatmapWidget: React.FC = () => {
 
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-            Total Shifts Verified
+            Total attendance records
           </span>
           <div className="flex items-baseline gap-1.5 mt-0.5">
             <span className="text-lg font-black text-slate-900">

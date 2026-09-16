@@ -1,34 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
-import {
-  Clock,
-  Building2,
-  AlertTriangle,
-  UserCheck,
-  Smartphone,
-  RotateCcw,
-  Calendar,
-  ChevronDown,
-  Search,
-  X,
-  User,
-} from 'lucide-react';
+import { AlertTriangle, Building2, Calendar, Clock, Search, X } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const {
     organisation,
     currentRole,
-    setCurrentRole,
     workers,
-    selectedWorkerId,
-    setSelectedWorkerId,
     exceptions,
     setActiveManagerTab,
     selectedDate,
     setSelectedDate,
-    resetToSampleData,
     sites,
-    selectedSiteFilter,
     setSelectedSiteFilter,
     setInspectedWorkerId,
     setInspectedSiteId,
@@ -86,7 +69,6 @@ export const Header: React.FC = () => {
   };
 
   const unresolvedCount = exceptions.filter((e) => e.status === 'unresolved').length;
-  const activeWorker = workers.find((w) => w.id === selectedWorkerId) || workers[0];
 
   return (
     <header id="klockit-header" className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-40">
@@ -100,11 +82,17 @@ export const Header: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg tracking-tight text-white">Klockit</span>
               <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-medium border border-slate-700/60">
-                Work Presence
+                {currentRole === 'operator' ? 'Operator Console' : currentRole === 'worker' ? 'Worker App' : 'Work Presence'}
               </span>
             </div>
             <p className="text-xs text-slate-400 truncate hidden md:block">
-              {organisation.name} · <span className="text-slate-300 italic">“Know who was at work each day”</span>
+              {currentRole === 'operator' ? (
+                'Klockit control plane · platform administration'
+              ) : (
+                <>
+                  {organisation.name} · <span className="text-slate-300 italic">“Know who was at work each day”</span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -268,64 +256,7 @@ export const Header: React.FC = () => {
             </button>
           )}
 
-          {/* Reset Demo Data */}
-          <button
-            id="header-reset-btn"
-            onClick={resetToSampleData}
-            title="Reset to initial realistic sample data"
-            aria-label="Reset to sample data"
-            className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-
-          {/* Role Switcher Toggle: Manager vs Worker */}
-          <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5">
-            <button
-              id="role-manager-btn"
-              onClick={() => setCurrentRole('manager')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                currentRole === 'manager'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Manager</span>
-            </button>
-            <button
-              id="role-worker-btn"
-              onClick={() => setCurrentRole('worker')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                currentRole === 'worker'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Worker App</span>
-            </button>
           </div>
-
-          {/* If in Worker view, worker switcher dropdown */}
-          {currentRole === 'worker' && (
-            <div className="relative flex items-center">
-              <label htmlFor="header-worker-select" className="sr-only">Switch active worker</label>
-              <select
-                id="header-worker-select"
-                value={selectedWorkerId}
-                onChange={(e) => setSelectedWorkerId(e.target.value)}
-                className="bg-slate-800 border border-emerald-500/50 text-white text-xs font-medium rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              >
-                {workers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} ({w.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );

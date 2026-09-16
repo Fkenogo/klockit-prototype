@@ -24,6 +24,7 @@ export const Navigation: React.FC = () => {
   const { activeManagerTab, setActiveManagerTab, exceptions, organisation, sites } = useKlockit();
 
   const unresolvedExceptionsCount = exceptions.filter((e) => e.status === 'unresolved').length;
+  const activeSiteCount = sites.filter((s) => s.status === 'active').length;
 
   const navItems: NavItem[] = [
     {
@@ -134,17 +135,17 @@ export const Navigation: React.FC = () => {
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80">
           <div className="flex items-center gap-2 mb-1.5">
             <ShieldCheck className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs font-semibold text-slate-800">Operational Integrity</span>
+            <span className="text-xs font-semibold text-slate-800">Record integrity</span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Attendance presence logs are immutable. Corrections record separate administrative timestamps.
+            What a Worker records at arrival and departure is kept as evidence. Manager corrections are appended
+            separately with a reason and are never substituted for the original record.
           </p>
           <div className="mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-            <span>{sites.length} Active Sites</span>
-            <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live Sync
+            <span>
+              {activeSiteCount} Active Site{activeSiteCount === 1 ? '' : 's'}
             </span>
+            <span>Saved on this device</span>
           </div>
         </div>
       </div>

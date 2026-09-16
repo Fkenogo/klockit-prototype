@@ -1,4 +1,12 @@
-import { Site, Worker, WorkPattern, WorkSession, AttendanceRecord, AttendanceException, OrganisationInfo, ShiftSwapRequest } from '../types';
+import {
+  Site,
+  Worker,
+  WorkPattern,
+  WorkSession,
+  AttendanceRecord,
+  AttendanceException,
+  OrganisationInfo,
+} from '../types';
 
 export const TODAY_DATE = '2026-09-14'; // Monday
 
@@ -47,6 +55,18 @@ export const INITIAL_SITES: Site[] = [
     normalWorkerCount: 2,
     contactNumber: '+44 161 820 9104',
     notes: 'Raw materials staging, palletising, and heavy outbound dispatch.',
+  },
+  {
+    id: 'site-4',
+    name: 'Old Yard Depot',
+    code: '355-207',
+    address: 'Rear Yard, North Industrial Park, Riverway',
+    city: 'Manchester',
+    status: 'retired',
+    qrPayload: 'klockit-site://site-4?token=oy_sec_1102d&name=Old+Yard+Depot',
+    normalWorkerCount: 0,
+    contactNumber: '+44 161 948 2077',
+    notes: 'Closed in August. Retained so historical attendance records still resolve to a known site.',
   },
 ];
 
@@ -119,8 +139,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-101',
     name: 'Marcus Vance',
     role: 'Lead Fabricator',
-    email: 'marcus.v@apexlogistics.co.uk',
-    phone: '+44 7700 900142',
     normalSiteId: 'site-1',
     status: 'active',
     avatarBg: 'bg-blue-600',
@@ -132,8 +150,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-102',
     name: 'Liam O\'Connor',
     role: 'Warehouse Coordinator',
-    email: 'liam.oc@apexlogistics.co.uk',
-    phone: '+44 7700 900281',
     normalSiteId: 'site-3',
     status: 'active',
     avatarBg: 'bg-emerald-600',
@@ -145,8 +161,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-103',
     name: 'Priya Patel',
     role: 'Assembly Technician',
-    email: 'priya.p@apexlogistics.co.uk',
-    phone: '+44 7700 900399',
     normalSiteId: 'site-1',
     status: 'active',
     avatarBg: 'bg-indigo-600',
@@ -158,8 +172,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-104',
     name: 'Elena Rostova',
     role: 'CNC Machinist',
-    email: 'elena.r@apexlogistics.co.uk',
-    phone: '+44 7700 900451',
     normalSiteId: 'site-1',
     status: 'active',
     avatarBg: 'bg-amber-600',
@@ -171,8 +183,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-105',
     name: 'Carlos Mendez',
     role: 'Maintenance Specialist',
-    email: 'carlos.m@apexlogistics.co.uk',
-    phone: '+44 7700 900512',
     normalSiteId: 'site-1',
     status: 'active',
     avatarBg: 'bg-cyan-600',
@@ -184,8 +194,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-106',
     name: 'Samira Khan',
     role: 'Customer Service & Desk',
-    email: 'samira.k@apexlogistics.co.uk',
-    phone: '+44 7700 900674',
     normalSiteId: 'site-2',
     status: 'active',
     avatarBg: 'bg-purple-600',
@@ -197,8 +205,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-107',
     name: 'David Chen',
     role: 'Quality Inspector',
-    email: 'david.c@apexlogistics.co.uk',
-    phone: '+44 7700 900720',
     normalSiteId: 'site-1', // Normally site 1, but checked in at site 2!
     status: 'active',
     avatarBg: 'bg-teal-600',
@@ -210,8 +216,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-108',
     name: 'Sofia Alves',
     role: 'Branch Supervisor',
-    email: 'sofia.a@apexlogistics.co.uk',
-    phone: '+44 7700 900818',
     normalSiteId: 'site-2',
     status: 'active',
     avatarBg: 'bg-rose-600',
@@ -223,8 +227,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-109',
     name: 'Tariq Al-Mansoor',
     role: 'Forklift Operator',
-    email: 'tariq.m@apexlogistics.co.uk',
-    phone: '+44 7700 900933',
     normalSiteId: 'site-3',
     status: 'active',
     avatarBg: 'bg-violet-600',
@@ -236,8 +238,6 @@ export const INITIAL_WORKERS: Worker[] = [
     workerRef: 'WK-110',
     name: 'Chloe Bennett',
     role: 'Late Shift Dispatcher',
-    email: 'chloe.b@apexlogistics.co.uk',
-    phone: '+44 7700 900019',
     normalSiteId: 'site-3',
     status: 'active',
     avatarBg: 'bg-sky-600',
@@ -730,12 +730,21 @@ export const INITIAL_ATTENDANCE: AttendanceRecord[] = [
     departureMethod: 'worker',
     status: 'completed',
     needsAttention: false,
-    managerCorrection: {
-      correctedBy: 'Operations Manager',
-      correctedAt: '2026-09-11T09:30:00Z',
-      reason: 'Confirmed phone camera broken, manual code approved.',
-      effectiveArrivalTime: '08:12',
-    },
+    effectiveArrivalTime: '08:12',
+    corrections: [
+      {
+        id: 'corr-hist-1',
+        type: 'verification',
+        action: 'Verified manual site code arrival',
+        correctedBy: 'Operations Manager',
+        correctedAt: '2026-09-11T09:30:00Z',
+        reason: 'Confirmed phone camera broken; manual code entry approved.',
+        recordedArrivalTime: '08:12',
+        recordedStatus: 'pending_review',
+        effectiveArrivalTime: '08:12',
+        resultingStatus: 'completed',
+      },
+    ],
   },
   {
     id: 'att-hist-4',
@@ -784,54 +793,21 @@ export const INITIAL_ATTENDANCE: AttendanceRecord[] = [
     departureMethod: 'manager_entry',
     status: 'completed',
     needsAttention: false,
-    managerCorrection: {
-      correctedBy: 'Operations Manager',
-      correctedAt: '2026-09-11T08:15:00Z',
-      reason: 'Worker forgot checkout before team offsite.',
-      effectiveDepartureTime: '17:00',
-    },
+    effectiveDepartureTime: '17:00',
+    corrections: [
+      {
+        id: 'corr-hist-2',
+        type: 'departure',
+        action: 'Recorded departure on the Worker\'s behalf',
+        correctedBy: 'Operations Manager',
+        correctedAt: '2026-09-11T08:15:00Z',
+        reason: 'Worker did not record departure before the team offsite.',
+        recordedArrivalTime: '08:02',
+        recordedStatus: 'missing_departure',
+        effectiveDepartureTime: '17:00',
+        resultingStatus: 'completed',
+      },
+    ],
   },
   ...generate30DayHistoricalAttendance(),
-];
-
-export const INITIAL_SHIFT_SWAPS: ShiftSwapRequest[] = [
-  {
-    id: 'swap-1',
-    requesterWorkerId: 'worker-3', // Priya Patel
-    targetWorkerId: 'worker-5', // Carlos Mendez
-    originalSessionId: 'sess-today-3',
-    originalDate: '2026-09-16',
-    proposedDate: '2026-09-18',
-    siteId: 'site-1',
-    reason: 'Medical appointment on Wednesday morning. Carlos agreed to swap shifts if approved.',
-    status: 'pending',
-    createdAt: '2026-09-14T07:15:00Z',
-  },
-  {
-    id: 'swap-2',
-    requesterWorkerId: 'worker-9', // Tariq Al-Mansoor
-    targetWorkerId: 'worker-10', // Chloe Bennett
-    originalSessionId: 'sess-today-9',
-    originalDate: '2026-09-17',
-    proposedDate: '2026-09-17',
-    siteId: 'site-3',
-    reason: 'Swap early shift (06:00-14:30) for afternoon shift (13:00-21:30) for vehicle test.',
-    status: 'pending',
-    createdAt: '2026-09-14T07:30:00Z',
-  },
-  {
-    id: 'swap-prev-1',
-    requesterWorkerId: 'worker-6', // Samira Khan
-    targetWorkerId: 'worker-8', // Sofia Alves
-    originalSessionId: 'sess-prev-6',
-    originalDate: '2026-09-11',
-    proposedDate: '2026-09-12',
-    siteId: 'site-2',
-    reason: 'Family event attendance.',
-    status: 'approved',
-    createdAt: '2026-09-09T14:20:00Z',
-    reviewedAt: '2026-09-10T09:00:00Z',
-    reviewedBy: 'Operations Manager',
-    reviewNotes: 'Approved. Ensure counter coverage maintained.',
-  },
 ];

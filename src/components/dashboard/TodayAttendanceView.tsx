@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
-import { ManualArrivalModal } from '../modals/ManualArrivalModal';
+import {
+  effectiveArrival,
+  effectiveDeparture,
+  isCorrected,
+  describeCorrection,
+} from '../../utils/attendance';
+import { ManagerReviewModal } from '../modals/ManagerReviewModal';
 import {
   Users,
   UserCheck,
-  UserPlus,
+  ClipboardCheck,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -42,7 +48,7 @@ export const TodayAttendanceView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'present' | 'completed' | 'not_arrived' | 'attention'>('all');
-  const [isManualArrivalModalOpen, setIsManualArrivalModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   // Filter work sessions for selected date
   const todaySessions = workSessions.filter((ws) => ws.date === selectedDate && ws.status !== 'cancelled');
@@ -156,12 +162,12 @@ export const TodayAttendanceView: React.FC = () => {
         {/* Actions & Date Controls */}
         <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
           <button
-            id="manually-log-arrival-btn"
-            onClick={() => setIsManualArrivalModalOpen(true)}
+            id="review-attendance-btn"
+            onClick={() => setIsReviewModalOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors cursor-pointer"
           >
-            <UserPlus className="w-4 h-4" />
-            <span>Manually Log Arrival</span>
+            <ClipboardCheck className="w-4 h-4" />
+            <span>Review attendance</span>
           </button>
 
           {/* Date Controls */}
@@ -437,21 +443,21 @@ export const TodayAttendanceView: React.FC = () => {
 
                       {/* Arrival Time */}
                       <td className="px-4 py-3.5">
-                        {attRecord?.arrivalTime ? (
+                        {effectiveArrival(attRecord) ? (
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono font-bold text-slate-900">
-                              {attRecord.arrivalTime}
+                              {effectiveArrival(attRecord)}
                             </span>
-                            {attRecord.arrivalMethod === 'qr' ? (
+                            {attRecord?.arrivalMethod === 'qr' ? (
                               <span title="Verified via Site QR code" className="p-0.5 rounded bg-emerald-50 text-emerald-700">
                                 <QrCode className="w-3 h-3" />
                               </span>
-                            ) : attRecord.arrivalMethod === 'manual_code' ? (
+                            ) : attRecord?.arrivalMethod === 'manual_code' ? (
                               <span title="Entered 6-digit site code manually" className="p-0.5 rounded bg-amber-50 text-amber-700">
                                 <KeyRound className="w-3 h-3" />
                               </span>
-                            ) : attRecord.arrivalMethod === 'manager_entry' ? (
-                              <span title="Logged manually by Manager" className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[9px] border border-indigo-200">
+                            ) : attRecord?.arrivalMethod === 'manager_entry' ? (
+                              <span title="Verified on site by a Manager" className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[9px] border border-indigo-200">
                                 Manager
                               </span>
                             ) : null}
@@ -459,14 +465,33 @@ export const TodayAttendanceView: React.FC = () => {
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
+                        {isCorrected(attRecord) && (
+                          <div
+                            className="text-[10px] text-slate-500 mt-0.5"
+                            title={describeCorrection(attRecord)}
+                          >
+                            {attRecord?.arrivalTime && attRecord.arrivalTime !== effectiveArrival(attRecord)
+                              ? `recorded ${attRecord.arrivalTime} · corrected`
+                              : 'Manager reviewed'}
+                          </div>
+                        )}
                       </td>
 
                       {/* Departure Time */}
                       <td className="px-4 py-3.5">
-                        {attRecord?.departureTime ? (
-                          <span className="font-mono font-bold text-slate-900">
-                            {attRecord.departureTime}
-                          </span>
+                        {effectiveDeparture(attRecord) ? (
+                          <>
+                            <span className="font-mono font-bold text-slate-900">
+                              {effectiveDeparture(attRecord)}
+                            </span>
+                            {isCorrected(attRecord) &&
+                              attRecord?.departureTime &&
+                              attRecord.departureTime !== effectiveDeparture(attRecord) && (
+                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                  recorded {attRecord.departureTime} · corrected
+                                </div>
+                              )}
+                          </>
                         ) : status === 'present' ? (
                           <span className="text-emerald-600 font-medium italic">At work now</span>
                         ) : status === 'missing_departure' ? (
@@ -563,9 +588,9 @@ export const TodayAttendanceView: React.FC = () => {
         </div>
       </div>
 
-      <ManualArrivalModal
-        isOpen={isManualArrivalModalOpen}
-        onClose={() => setIsManualArrivalModalOpen(false)}
+      <ManagerReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
       />
     </div>
   );

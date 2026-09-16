@@ -6,7 +6,9 @@ export interface Site {
   code: string; // 6-digit short human-readable fallback code (e.g., '482-901')
   address: string;
   city: string;
-  status: 'active' | 'suspended' | 'archived';
+  // Site lifecycle. 'retired' replaces the previous 'archived' wording so that
+  // lifecycle language stays consistent with how Workers are described.
+  status: 'active' | 'suspended' | 'retired';
   qrPayload: string; // Secure token contained within the QR
   normalWorkerCount?: number;
   contactNumber?: string;
@@ -32,10 +34,8 @@ export interface Worker {
   id: string;
   workerRef: string; // e.g. 'WK-104'
   name: string;
-  role: string;
-  email: string;
-  phone: string;
-  normalSiteId: string;
+  role: string; // Role on site — used to identify who is present (not an HR job title)
+  normalSiteId: string; // Usual site — workers always have an open site for their normal base
   status: 'active' | 'suspended' | 'inactive';
   avatarBg: string;
   initials: string;
@@ -66,13 +66,33 @@ export type AttendanceStatus =
   | 'unmatched'             // Arrival recorded with no matching expected work session
   | 'rejected';             // Manager rejected arrival
 
-export interface ManagerCorrection {
+export type CorrectionType =
+  | 'arrival'        // Manager recorded / corrected the arrival time
+  | 'departure'      // Manager recorded / corrected the departure time
+  | 'verification'   // Manager verified physical presence (no time change)
+  | 'session_link';  // Manager linked the record to an expected Work Session
+
+/**
+ * An append-only entry describing one Manager intervention on an attendance record.
+ *
+ * The Klockit rule is that attendance evidence is never silently replaced:
+ * `recordedArrivalTime` / `recordedDepartureTime` snapshot what was on the record
+ * *before* the Manager acted, while `effectiveArrivalTime` / `effectiveDepartureTime`
+ * hold the times that now count for reporting.
+ */
+export interface AttendanceCorrection {
+  id: string;
+  type: CorrectionType;
+  action: string;              // Plain-language description of what the Manager did
   correctedBy: string;
-  correctedAt: string;      // When the manager clicked resolve
-  reason: string;
-  effectiveDepartureTime?: string; // What time the worker actually left
-  effectiveArrivalTime?: string;
-  originalValue?: string;
+  correctedAt: string;         // ISO timestamp of the Manager action
+  reason: string;              // Manager's stated reason (required)
+  recordedArrivalTime?: string;   // Evidence as originally recorded
+  recordedDepartureTime?: string; // Evidence as originally recorded
+  recordedStatus: AttendanceStatus;
+  effectiveArrivalTime?: string;   // Time that now counts towards reporting
+  effectiveDepartureTime?: string; // Time that now counts towards reporting
+  resultingStatus: AttendanceStatus;
 }
 
 export interface AttendanceRecord {
@@ -81,14 +101,18 @@ export interface AttendanceRecord {
   workSessionId?: string;
   siteId: string;
   date: string; // YYYY-MM-DD
-  arrivalTime?: string; // HH:mm
+  // --- Original evidence, captured at the moment of arrival / departure ---
+  arrivalTime?: string; // HH:mm — never overwritten by a Manager correction
   arrivalMethod?: ArrivalMethod;
-  departureTime?: string; // HH:mm
+  departureTime?: string; // HH:mm — never overwritten by a Manager correction
   departureMethod?: DepartureMethod;
+  // --- Effective values, only present once a Manager has confirmed or corrected ---
+  effectiveArrivalTime?: string;
+  effectiveDepartureTime?: string;
   status: AttendanceStatus;
   needsAttention: boolean;
   exceptionId?: string;
-  managerCorrection?: ManagerCorrection;
+  corrections?: AttendanceCorrection[]; // Append-only audit trail
   notes?: string;
 }
 
@@ -134,21 +158,4 @@ export interface OrganisationInfo {
   defaultGracePeriodMinutes: number;
   allowManualCodeFallback: boolean;
   requireManagerReviewForManualCode: boolean;
-}
-
-export interface ShiftSwapRequest {
-  id: string;
-  requesterWorkerId: string;
-  targetWorkerId?: string; // specific worker requested to swap with, or undefined if broadcast to site
-  originalSessionId: string;
-  proposedTargetSessionId?: string;
-  originalDate: string; // YYYY-MM-DD
-  proposedDate?: string; // YYYY-MM-DD
-  siteId: string;
-  reason: string;
-  status: 'pending' | 'approved' | 'denied';
-  createdAt: string;
-  reviewedAt?: string;
-  reviewedBy?: string;
-  reviewNotes?: string;
 }
