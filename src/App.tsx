@@ -11,6 +11,7 @@ import { AttendanceHistoryView } from './components/history/AttendanceHistoryVie
 import { OrganisationSettingsView } from './components/settings/OrganisationSettingsView';
 import { WorkerWorkspace } from './components/worker-portal/WorkerWorkspace';
 import { OperatorExperience } from './components/operator/OperatorExperience';
+import { OperatorProvider } from './context/OperatorContext';
 import { PrototypeControls } from './components/prototype/PrototypeControls';
 import { SiteQrModal } from './components/modals/SiteQrModal';
 import { WorkerProfileModal } from './components/modals/WorkerProfileModal';
@@ -49,7 +50,9 @@ const MainLayout: React.FC = () => {
       ) : currentRole === 'operator' ? (
         /* Klockit Operator control plane — internal platform administration */
         <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
-          <OperatorExperience />
+          <OperatorProvider>
+            <OperatorExperience />
+          </OperatorProvider>
         </main>
       ) : (
         /* Worker Dedicated Attendance Space */
