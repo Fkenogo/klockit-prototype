@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
+import { sessionWorkerIds } from '../../types';
 import {
   X,
   AlertTriangle,
@@ -27,10 +28,19 @@ export const ExceptionInvestigationModal: React.FC = () => {
     resolveException,
   } = useKlockit();
 
+  // All hooks run in stable order on every render — nothing conditional above them.
   const [effectiveTime, setEffectiveTime] = useState<string>('17:00');
   const [managerNote, setManagerNote] = useState<string>('');
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [isRejecting, setIsRejecting] = useState<boolean>(false);
+
+  // Reset per-exception form state whenever a different case is opened.
+  React.useEffect(() => {
+    setEffectiveTime('17:00');
+    setManagerNote('');
+    setSelectedSessionId('');
+    setIsRejecting(false);
+  }, [inspectedExceptionId]);
 
   if (!inspectedExceptionId) return null;
   const exception = exceptions.find((e) => e.id === inspectedExceptionId);
@@ -47,7 +57,7 @@ export const ExceptionInvestigationModal: React.FC = () => {
     : attendance.find((a) => a.workerId === exception.workerId && a.date === exception.date);
 
   const matchingSession = workSessions.find(
-    (ws) => ws.workerId === exception.workerId && ws.date === exception.date
+    (ws) => sessionWorkerIds(ws).includes(exception.workerId) && ws.date === exception.date
   );
 
   const handleConfirmDeparture = () => {

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { AttendanceRecord, Worker, Site, WorkSession, OrganisationInfo } from '../types';
+import { effectiveArrival, effectiveDeparture, getLatestCorrection } from './attendance';
 
 interface GenerateDailyPdfOptions {
   date: string;
@@ -69,12 +70,12 @@ export function generateDailyAttendancePdf({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(255, 255, 255);
-  doc.text('KLOCKIT WORKFORCE ATTENDANCE', margin, 12);
+  doc.text('KLOCKIT WORK PRESENCE', margin, 12);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(203, 213, 225); // slate-300
-  doc.text(`${organisation.name} · Official Attendance Audit Report`, margin, 18);
+  doc.text(`${organisation.name} · Daily presence report`, margin, 18);
 
   // Date Tag on Right
   doc.setFont('helvetica', 'bold');
@@ -123,13 +124,13 @@ export function generateDailyAttendancePdf({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text('DAILY WORKFORCE ATTENDANCE LOG', margin, y);
+  doc.text('DAILY PRESENCE LOG', margin, y);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text(
-    `Generated on ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC · Authenticated manager export`,
+    `Generated ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC · Manager report`,
     pageWidth - margin,
     y,
     { align: 'right' }
@@ -204,11 +205,11 @@ export function generateDailyAttendancePdf({
       ref: w.workerRef,
       siteName: site?.name || 'Unassigned',
       scheduled: session ? `${session.startTime} - ${session.endTime}` : 'Unscheduled',
-      arrival: rec?.arrivalTime ? `${rec.arrivalTime} (${rec.arrivalMethod === 'qr' ? 'QR' : 'Code'})` : '—',
-      departure: rec?.departureTime || (rec?.status === 'present' ? 'In Progress' : '—'),
+      arrival: effectiveArrival(rec) ? `${effectiveArrival(rec)} (${rec?.arrivalMethod === 'qr' ? 'QR' : rec?.arrivalMethod === 'manager_entry' ? 'Manager' : 'Code'})` : '—',
+      departure: effectiveDeparture(rec) || (rec?.status === 'present' ? 'In Progress' : '—'),
       status: statusText,
       method: rec?.arrivalMethod || '',
-      correctionNote: rec?.managerCorrection?.reason,
+      correctionNote: getLatestCorrection(rec)?.reason,
     });
   });
 
@@ -270,7 +271,7 @@ export function generateDailyAttendancePdf({
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(6.5);
       doc.setTextColor(79, 70, 229); // indigo-600
-      doc.text(`  ↳ Manager Verified: "${row.correctionNote}"`, colX.worker + 3, y + 2.5);
+      doc.text(`  ↳ Manager correction: "${row.correctionNote}"`, colX.worker + 3, y + 2.5);
       y += 4.5;
       doc.setFontSize(7.5);
     }
@@ -294,18 +295,18 @@ export function generateDailyAttendancePdf({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 41, 59);
-  doc.text('AUDIT COMPLIANCE & INTEGRITY DECLARATION', margin + 4, y + 5);
+  doc.text('HOW THIS REPORT WAS MADE', margin + 4, y + 5);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(71, 85, 105);
   doc.text(
-    'This document records physical workplace presence verified via encrypted on-site dynamic QR tokens or supervisor-reviewed manual fallback codes.',
+    'Presence recorded with the Site QR, or with a Site code reviewed by a Manager.',
     margin + 4,
     y + 10
   );
   doc.text(
-    `Exceptions detected on ${date}: ${pendingReviewCount} review items, ${missingDepartureCount} missing departures. All timestamp modifications are cryptographically logged.`,
+    `Items needing review on ${date}: ${pendingReviewCount} awaiting review, ${missingDepartureCount} missing departures. Manager reviews are kept with their reasons.`,
     margin + 4,
     y + 15
   );
@@ -321,7 +322,7 @@ export function generateDailyAttendancePdf({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('Operations Manager Sign-Off:', margin, y + 6);
+  doc.text('Manager sign-off:', margin, y + 6);
   doc.line(margin + 40, y + 6, margin + 95, y + 6);
 
   doc.text('Date Approved:', margin + 105, y + 6);
@@ -332,7 +333,7 @@ export function generateDailyAttendancePdf({
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184);
   doc.text(
-    `Klockit Workforce Presence Platform · Confidential & Proprietary · Page ${doc.getNumberOfPages()}`,
+    `Klockit work presence · Page ${doc.getNumberOfPages()}`,
     pageWidth / 2,
     pageHeight - 6,
     { align: 'center' }

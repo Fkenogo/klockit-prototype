@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
 import { AddWorkerModal } from '../modals/AddWorkerModal';
+import { Worker } from '../../types';
 import {
   Users,
   UserPlus,
@@ -12,7 +13,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Shield,
   LayoutGrid,
   List,
 } from 'lucide-react';
@@ -26,21 +26,14 @@ export const WorkersView: React.FC = () => {
     exceptions,
     setInspectedWorkerId,
     setInspectedExceptionId,
-    bulkAssignWorkersToSite,
-    bulkSetWorkersStatus,
     showToast,
   } = useKlockit();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [siteFilter, setSiteFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | Worker['status']>('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-
-  // Multi-Select Bulk Actions State
-  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
-  const [bulkTargetSiteId, setBulkTargetSiteId] = useState<string>(sites[0]?.id || 'site-1');
-  const [bulkTargetStatus, setBulkTargetStatus] = useState<'active' | 'suspended'>('active');
 
   // Filter workers
   const filteredWorkers = workers.filter((worker) => {
@@ -58,46 +51,19 @@ export const WorkersView: React.FC = () => {
     return true;
   });
 
-  const toggleSelectWorker = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setSelectedWorkerIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedWorkerIds.length === filteredWorkers.length && filteredWorkers.length > 0) {
-      setSelectedWorkerIds([]);
-    } else {
-      setSelectedWorkerIds(filteredWorkers.map((w) => w.id));
-    }
-  };
-
-  const handleBulkAssignSite = () => {
-    if (selectedWorkerIds.length === 0) return;
-    bulkAssignWorkersToSite(selectedWorkerIds, bulkTargetSiteId);
-    setSelectedWorkerIds([]);
-  };
-
-  const handleBulkSetStatus = () => {
-    if (selectedWorkerIds.length === 0) return;
-    bulkSetWorkersStatus(selectedWorkerIds, bulkTargetStatus);
-    setSelectedWorkerIds([]);
-  };
-
   return (
     <div id="workers-view" className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Workers Directory</h1>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Workers</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs border border-indigo-200 font-mono">
-              {workers.length} Personnel
+              {workers.length} Workers
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Persistent workforce members, assigned primary work locations, and recurring schedule patterns.
+            People who belong to this organisation, their usual Site, and their expected work.
           </p>
         </div>
 
@@ -114,29 +80,6 @@ export const WorkersView: React.FC = () => {
       {/* Search & Filter Bar */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {/* Select All Checkbox */}
-          <button
-            id="select-all-workers-btn"
-            onClick={toggleSelectAll}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              selectedWorkerIds.length > 0 && selectedWorkerIds.length === filteredWorkers.length
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={selectedWorkerIds.length > 0 && selectedWorkerIds.length === filteredWorkers.length}
-              onChange={() => {}}
-              className="w-4 h-4 text-indigo-600 rounded border-slate-300 pointer-events-none"
-            />
-            <span>
-              {selectedWorkerIds.length > 0
-                ? `${selectedWorkerIds.length} of ${filteredWorkers.length} Selected`
-                : 'Select All'}
-            </span>
-          </button>
-
           <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -177,6 +120,7 @@ export const WorkersView: React.FC = () => {
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="suspended">Suspended</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
 
@@ -209,74 +153,6 @@ export const WorkersView: React.FC = () => {
       </div>
 
       {/* Floating / Sticky Bulk Action Toolbar */}
-      {selectedWorkerIds.length > 0 && (
-        <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-150">
-          <div className="flex items-center gap-3">
-            <span className="w-7 h-7 rounded-lg bg-indigo-500 text-white font-black text-xs flex items-center justify-center">
-              {selectedWorkerIds.length}
-            </span>
-            <div>
-              <span className="font-bold text-xs text-white block">Bulk Actions for Selected Workers</span>
-              <span className="text-[11px] text-slate-400">Perform quick updates in a single click</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Action 1: Assign to Site */}
-            <div className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
-              <Building2 className="w-3.5 h-3.5 text-slate-400 ml-1" />
-              <select
-                id="bulk-site-selector"
-                value={bulkTargetSiteId}
-                onChange={(e) => setBulkTargetSiteId(e.target.value)}
-                className="bg-slate-900 text-white text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none"
-              >
-                {sites.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
-              <button
-                id="bulk-assign-site-btn"
-                onClick={handleBulkAssignSite}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-colors"
-              >
-                Assign to Site
-              </button>
-            </div>
-
-            {/* Action 2: Set Shift Status */}
-            <div className="flex items-center gap-1.5 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
-              <Shield className="w-3.5 h-3.5 text-slate-400 ml-1" />
-              <select
-                id="bulk-status-selector"
-                value={bulkTargetStatus}
-                onChange={(e) => setBulkTargetStatus(e.target.value as any)}
-                className="bg-slate-900 text-white text-xs rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none"
-              >
-                <option value="active">Active</option>
-                <option value="suspended">Suspended</option>
-              </select>
-              <button
-                id="bulk-set-status-btn"
-                onClick={handleBulkSetStatus}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors"
-              >
-                Set Shift Status
-              </button>
-            </div>
-
-            <button
-              onClick={() => setSelectedWorkerIds([])}
-              className="px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Workers Content (Table or Grid with helpful Empty States) */}
       {viewMode === 'table' ? (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -284,14 +160,6 @@ export const WorkersView: React.FC = () => {
             <table id="workers-table" className="w-full text-left text-xs">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px]">
                 <tr>
-                  <th className="px-5 py-3.5 w-10">
-                    <input
-                      type="checkbox"
-                      checked={selectedWorkerIds.length > 0 && selectedWorkerIds.length === filteredWorkers.length}
-                      onChange={toggleSelectAll}
-                      className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
-                    />
-                  </th>
                   <th className="px-4 py-3.5">Worker</th>
                   <th className="px-4 py-3.5">ID / Reference</th>
                   <th className="px-4 py-3.5">Primary Site</th>
@@ -304,18 +172,18 @@ export const WorkersView: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {filteredWorkers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center">
+                    <td colSpan={7} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center max-w-md mx-auto">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
                           <Users className="w-6 h-6" />
                         </div>
                         <h3 className="text-sm font-bold text-slate-900">
-                          {workers.length === 0 ? 'No Workers in Directory' : 'No Workers Matching Your Filters'}
+                          {workers.length === 0 ? 'No Workers yet' : 'No Workers match these filters'}
                         </h3>
                         <p className="text-xs text-slate-500 mt-1 max-w-sm">
                           {workers.length === 0
-                            ? 'Get started by adding your first workforce member to configure their site, schedule patterns, and track shifts.'
-                            : 'No personnel matched your current search query or filter criteria. Try resetting filters or adding a new worker.'}
+                            ? 'Add your first Worker with their usual Site and expected work.'
+                            : 'No Workers match this search or filter. Try clearing the filters or adding a Worker.'}
                         </p>
                         <div className="mt-4 flex items-center gap-2.5">
                           {workers.length === 0 ? (
@@ -358,23 +226,12 @@ export const WorkersView: React.FC = () => {
                     const pattern = patterns.find((p) => p.id === worker.workPatternId);
                     const activeException = exceptions.find((e) => e.workerId === worker.id && e.status === 'unresolved');
                     const recentAtt = attendance.find((a) => a.workerId === worker.id);
-                    const isSelected = selectedWorkerIds.includes(worker.id);
 
                     return (
                       <tr
                         key={worker.id}
-                        className={`hover:bg-slate-50/70 transition-colors ${
-                          isSelected ? 'bg-indigo-50/20' : ''
-                        }`}
+                        className="hover:bg-slate-50/70 transition-colors"
                       >
-                        <td className="px-5 py-3.5">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => toggleSelectWorker(worker.id, e as any)}
-                            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
-                          />
-                        </td>
                         <td className="px-4 py-3.5">
                           <button
                             onClick={() => setInspectedWorkerId(worker.id)}
@@ -410,7 +267,9 @@ export const WorkersView: React.FC = () => {
                             className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                               worker.status === 'active'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : worker.status === 'suspended'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300'
                             }`}
                           >
                             {worker.status.toUpperCase()}
@@ -457,12 +316,12 @@ export const WorkersView: React.FC = () => {
             <Users className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-900">
-            {workers.length === 0 ? 'No Workers in Directory' : 'No Workers Matching Your Filters'}
+            {workers.length === 0 ? 'No Workers yet' : 'No Workers match these filters'}
           </h3>
           <p className="text-xs text-slate-500 mt-1 max-w-sm">
             {workers.length === 0
-              ? 'Get started by adding your first workforce member to configure their site, schedule patterns, and track shifts.'
-              : 'No personnel matched your current search query or filter criteria. Try resetting filters or adding a new worker.'}
+              ? 'Add your first Worker with their usual Site and expected work.'
+              : 'No Workers match this search or filter. Try clearing the filters or adding a Worker.'}
           </p>
           <div className="mt-4 flex items-center gap-2.5">
             {workers.length === 0 ? (
@@ -504,36 +363,26 @@ export const WorkersView: React.FC = () => {
           const pattern = patterns.find((p) => p.id === worker.workPatternId);
           const activeException = exceptions.find((e) => e.workerId === worker.id && e.status === 'unresolved');
           const recentAtt = attendance.find((a) => a.workerId === worker.id);
-          const isSelected = selectedWorkerIds.includes(worker.id);
 
           return (
             <div
               key={worker.id}
-              onClick={() => toggleSelectWorker(worker.id)}
-              className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col justify-between cursor-pointer ${
-                isSelected
-                  ? 'border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/15'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
+              className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 p-5 shadow-xs transition-all flex flex-col justify-between"
             >
               <div>
-                {/* Top card row with Checkbox */}
+                {/* Top card row */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => toggleSelectWorker(worker.id, e as any)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
-                    />
                     <div className={`w-10 h-10 rounded-xl ${worker.avatarBg} text-white font-bold text-sm flex items-center justify-center shadow-xs`}>
                       {worker.initials}
                     </div>
                     <div>
-                      <h2 className="font-bold text-sm text-slate-900 hover:text-indigo-600 transition-colors">
+                      <button
+                        onClick={() => setInspectedWorkerId(worker.id)}
+                        className="font-bold text-sm text-slate-900 hover:text-indigo-600 transition-colors text-left"
+                      >
                         {worker.name}
-                      </h2>
+                      </button>
                       <p className="text-xs text-slate-500">{worker.role}</p>
                     </div>
                   </div>
@@ -542,7 +391,9 @@ export const WorkersView: React.FC = () => {
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                       worker.status === 'active'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : worker.status === 'suspended'
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : 'bg-slate-100 text-slate-600 border border-slate-300'
                     }`}
                   >
                     {worker.status.toUpperCase()}

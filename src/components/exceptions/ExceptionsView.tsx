@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
-import { ExceptionInvestigationModal } from '../modals/ExceptionInvestigationModal';
 import {
   AlertTriangle,
   AlertOctagon,
@@ -52,7 +51,7 @@ export const ExceptionsView: React.FC = () => {
         };
       case 'multiple_possible_sessions':
         return {
-          label: 'Multiple Matching Shifts',
+          label: 'Several possible Work Sessions',
           icon: Layers,
           color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
         };
@@ -274,9 +273,6 @@ export const ExceptionsView: React.FC = () => {
           })
         )}
       </div>
-
-      {/* Modal Inspector */}
-      <ExceptionInvestigationModal />
     </div>
   );
 };

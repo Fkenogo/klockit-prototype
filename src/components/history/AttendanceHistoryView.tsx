@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
 import { generateDailyAttendancePdf } from '../../utils/pdfGenerator';
+import { effectiveArrival, effectiveDeparture } from '../../utils/attendance';
 import {
   History,
   Calendar,
@@ -75,7 +76,7 @@ export const AttendanceHistoryView: React.FC = () => {
     // Status filter
     if (statusFilter === 'completed' && rec.status !== 'completed') return false;
     if (statusFilter === 'missing' && rec.status !== 'missing_departure') return false;
-    if (statusFilter === 'corrected' && !rec.managerCorrection) return false;
+    if (statusFilter === 'corrected' && !rec.corrections?.length) return false;
 
     // Search query
     if (searchQuery.trim()) {
@@ -95,11 +96,11 @@ export const AttendanceHistoryView: React.FC = () => {
   const totalRecords = filteredAttendance.length;
   const completedCount = filteredAttendance.filter((r) => r.status === 'completed').length;
   const missingDepartures = filteredAttendance.filter((r) => r.status === 'missing_departure').length;
-  const correctedByManager = filteredAttendance.filter((r) => !!r.managerCorrection).length;
+  const correctedByManager = filteredAttendance.filter((r) => (r.corrections?.length ?? 0) > 0).length;
 
   const handleExportCsv = () => {
     const csvRows = [
-      ['Date', 'Worker Name', 'Worker Ref', 'Site', 'Arrival Time', 'Arrival Method', 'Departure Time', 'Status', 'Manager Correction Reason'],
+      ['Date', 'Worker Name', 'Worker Ref', 'Site', 'Arrival Time', 'Arrival Method', 'Departure Time', 'Status', 'Manager Review Reason'],
       ...filteredAttendance.map((rec) => {
         const worker = workers.find((w) => w.id === rec.workerId);
         const site = sites.find((s) => s.id === rec.siteId);
@@ -108,11 +109,11 @@ export const AttendanceHistoryView: React.FC = () => {
           `"${worker?.name || ''}"`,
           worker?.workerRef || '',
           `"${site?.name || ''}"`,
-          rec.arrivalTime || '',
+          effectiveArrival(rec) || rec.arrivalTime || '',
           rec.arrivalMethod || '',
-          rec.departureTime || '',
+          effectiveDeparture(rec) || rec.departureTime || '',
           rec.status,
-          `"${rec.managerCorrection?.reason || ''}"`,
+          `"${rec.corrections?.[rec.corrections.length - 1]?.reason || ''}"`,
         ];
       }),
     ];
@@ -293,10 +294,10 @@ export const AttendanceHistoryView: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value as any)}
                 className="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-2 py-1.5 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="all">All Statuses</option>
-                <option value="completed">Completed Only</option>
-                <option value="missing">Missing Departures</option>
-                <option value="corrected">Manager Corrected</option>
+                <option value="all">All statuses</option>
+                <option value="completed">Completed only</option>
+                <option value="missing">Missing departures</option>
+                <option value="corrected">Reviewed by Manager</option>
               </select>
             </div>
           </div>
@@ -320,24 +321,24 @@ export const AttendanceHistoryView: React.FC = () => {
       {/* Operational Summary Strip (Brief Section 21: Useful attendance summary without surveillance) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="text-xs text-slate-500 font-semibold mb-1">Total Records in Period</div>
+          <div className="text-xs text-slate-500 font-semibold mb-1">Records in this period</div>
           <div className="text-2xl font-black font-mono text-slate-900">{totalRecords}</div>
-          <p className="text-[10px] text-slate-400 mt-1">Logged presence entries</p>
+          <p className="text-[10px] text-slate-400 mt-1">Work-presence entries</p>
         </div>
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="text-xs text-blue-700 font-semibold mb-1">Completed Shifts</div>
+          <div className="text-xs text-blue-700 font-semibold mb-1">Completed attendance</div>
           <div className="text-2xl font-black font-mono text-blue-700">{completedCount}</div>
-          <p className="text-[10px] text-slate-400 mt-1">Both arrival & departure logged</p>
+          <p className="text-[10px] text-slate-400 mt-1">Both arrival and departure recorded</p>
         </div>
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="text-xs text-rose-700 font-semibold mb-1">Missing Departures</div>
+          <div className="text-xs text-rose-700 font-semibold mb-1">Missing departures</div>
           <div className="text-2xl font-black font-mono text-rose-700">{missingDepartures}</div>
-          <p className="text-[10px] text-slate-400 mt-1">Unclosed attendance sessions</p>
+          <p className="text-[10px] text-slate-400 mt-1">Arrival recorded, departure still open</p>
         </div>
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="text-xs text-indigo-700 font-semibold mb-1">Manager Corrected</div>
+          <div className="text-xs text-indigo-700 font-semibold mb-1">Reviewed by Manager</div>
           <div className="text-2xl font-black font-mono text-indigo-700">{correctedByManager}</div>
-          <p className="text-[10px] text-slate-400 mt-1">Adjusted with separate audit time</p>
+          <p className="text-[10px] text-slate-400 mt-1">Confirmed or corrected with a reason</p>
         </div>
       </div>
 
@@ -438,11 +439,11 @@ export const AttendanceHistoryView: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-4 py-3.5 font-mono">
-                          {rec.arrivalTime ? (
+                          {(effectiveArrival(rec) || rec.arrivalTime) ? (
                             <span className="font-bold text-slate-900">
-                              {rec.arrivalTime}
+                              {effectiveArrival(rec) || rec.arrivalTime}
                               <span className="text-[10px] text-slate-400 ml-1 font-sans">
-                                ({rec.arrivalMethod?.toUpperCase() || 'SCAN'})
+                                ({rec.arrivalMethod === 'qr' ? 'Site QR' : rec.arrivalMethod === 'manual_code' ? 'Site code' : rec.arrivalMethod === 'manager_entry' ? 'Manager entry' : 'Recorded'})
                               </span>
                             </span>
                           ) : (
@@ -450,9 +451,9 @@ export const AttendanceHistoryView: React.FC = () => {
                           )}
                         </td>
                         <td className="px-4 py-3.5 font-mono">
-                          {rec.departureTime ? (
+                          {(effectiveDeparture(rec) || rec.departureTime) ? (
                             <span className="font-bold text-slate-900">
-                              {rec.departureTime}
+                              {effectiveDeparture(rec) || rec.departureTime}
                             </span>
                           ) : rec.status === 'missing_departure' ? (
                             <span className="text-rose-600 font-semibold italic">Missing</span>
@@ -480,7 +481,7 @@ export const AttendanceHistoryView: React.FC = () => {
                             onClick={() => setExpandedRecordId(isExpanded ? null : rec.id)}
                             className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 text-xs font-semibold px-2 py-1 rounded hover:bg-slate-100"
                           >
-                            <span>{rec.managerCorrection ? 'Correction Log' : 'Details'}</span>
+                            <span>{rec.corrections && rec.corrections.length > 0 ? 'Review history' : 'Details'}</span>
                             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </button>
                         </td>
@@ -495,48 +496,50 @@ export const AttendanceHistoryView: React.FC = () => {
                                 <span className="font-bold text-slate-800">
                                   Record ID: <span className="font-mono font-normal text-slate-500">{rec.id}</span>
                                 </span>
-                                {rec.managerCorrection && (
+                                {rec.corrections && rec.corrections.length > 0 && (
                                   <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-[10px]">
-                                    Administrative Correction Applied
+                                    Manager review recorded
                                   </span>
                                 )}
                               </div>
 
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-100 text-slate-600">
                                 <div>
-                                  <span className="text-slate-400 block text-[10px]">Effective Arrival</span>
-                                  <span className="font-mono font-bold text-slate-800">{rec.arrivalTime || 'None'}</span>
+                                  <span className="text-slate-400 block text-[10px]">Arrival (counts)</span>
+                                  <span className="font-mono font-bold text-slate-800">{effectiveArrival(rec) || rec.arrivalTime || 'None'}</span>
                                 </div>
                                 <div>
-                                  <span className="text-slate-400 block text-[10px]">Effective Departure</span>
-                                  <span className="font-mono font-bold text-slate-800">{rec.departureTime || 'None'}</span>
+                                  <span className="text-slate-400 block text-[10px]">Departure (counts)</span>
+                                  <span className="font-mono font-bold text-slate-800">{effectiveDeparture(rec) || rec.departureTime || 'None'}</span>
                                 </div>
                                 <div>
-                                  <span className="text-slate-400 block text-[10px]">Arrival Verification</span>
+                                  <span className="text-slate-400 block text-[10px]">How arrival was recorded</span>
                                   <span className="font-medium text-slate-800">
-                                    {rec.arrivalMethod === 'qr' ? 'Physical Site QR Scan' : '6-Digit Manual Site Code'}
+                                    {rec.arrivalMethod === 'qr' ? 'Site QR' : rec.arrivalMethod === 'manual_code' ? 'Site code' : rec.arrivalMethod === 'manager_entry' ? 'Manager entry' : '—'}
                                   </span>
                                 </div>
                                 <div>
-                                  <span className="text-slate-400 block text-[10px]">Departure Verification</span>
+                                  <span className="text-slate-400 block text-[10px]">How departure was recorded</span>
                                   <span className="font-medium text-slate-800">
-                                    {rec.departureMethod === 'manager_entry' ? 'Manager Resolution Entry' : 'Worker Self-Checkout'}
+                                    {rec.departureMethod === 'manager_entry' ? 'Manager entry' : rec.departureMethod === 'worker' ? 'Worker' : '—'}
                                   </span>
                                 </div>
                               </div>
 
-                              {rec.managerCorrection && (
+                              {rec.corrections && rec.corrections.length > 0 && (
                                 <div className="mt-3 p-3 rounded-lg bg-indigo-50/70 border border-indigo-100 text-indigo-950 space-y-1">
                                   <p className="font-bold text-[11px] text-indigo-900">
-                                    Manager Audit Trail:
+                                    Manager review history:
                                   </p>
-                                  <p className="text-[11px] text-indigo-800">
-                                    Reason: <strong>{rec.managerCorrection.reason}</strong>
-                                  </p>
-                                  <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1">
-                                    <span>Corrected by: {rec.managerCorrection.correctedBy}</span>
-                                    <span>Resolution Time: {new Date(rec.managerCorrection.correctedAt).toLocaleString()}</span>
-                                  </div>
+                                  {rec.corrections.map((c) => (
+                                    <div key={c.id} className="text-[11px] text-indigo-800 border-t border-indigo-100 pt-1 first:border-0 first:pt-0">
+                                      <p><strong>{c.action}</strong> — {c.reason}</p>
+                                      <div className="text-[10px] text-slate-500 flex items-center justify-between pt-0.5">
+                                        <span>By {c.correctedBy}</span>
+                                        <span>{new Date(c.correctedAt).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>
@@ -563,8 +566,8 @@ export const AttendanceHistoryView: React.FC = () => {
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Daily Attendance PDF Report</h3>
-                  <p className="text-xs text-slate-300">Official audit-ready workforce presence summary</p>
+                  <h3 className="text-base font-black text-white">Daily presence PDF</h3>
+                  <p className="text-xs text-slate-300">Work-presence summary for a single day</p>
                 </div>
               </div>
               <button

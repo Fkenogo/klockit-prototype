@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
 import { AddSiteModal } from '../modals/AddSiteModal';
+import { Site } from '../../types';
 import {
   MapPin,
   Plus,
@@ -16,6 +17,24 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
+/**
+ * Site lifecycle wording and colours are defined once so that 'retired' is
+ * never presented as if it were an error state — a retired site is simply no
+ * longer in use, and is kept so historical attendance still resolves to a
+ * known place of work.
+ */
+const SITE_STATUS_LABEL: Record<Site['status'], string> = {
+  active: 'Active',
+  suspended: 'Suspended',
+  retired: 'Retired',
+};
+
+const SITE_STATUS_BADGE: Record<Site['status'], string> = {
+  active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  suspended: 'bg-amber-50 text-amber-800 border-amber-200',
+  retired: 'bg-slate-100 text-slate-600 border-slate-300',
+};
+
 export const SitesView: React.FC = () => {
   const {
     sites,
@@ -24,6 +43,8 @@ export const SitesView: React.FC = () => {
     attendance,
     setSiteQrModalSiteId,
     setInspectedWorkerId,
+    inspectedSiteId,
+    setInspectedSiteId,
     setActiveManagerTab,
     setSelectedSiteFilter,
     updateSite,
@@ -31,6 +52,21 @@ export const SitesView: React.FC = () => {
 
   const [isAddSiteOpen, setIsAddSiteOpen] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string>(sites[0]?.id || 'site-1');
+  const [lifecycleFilter, setLifecycleFilter] = useState<'all' | Site['status']>('all');
+
+  // Global search deep-link: honour a requested Site, then release the request.
+  React.useEffect(() => {
+    if (inspectedSiteId && sites.some((s) => s.id === inspectedSiteId)) {
+      setSelectedSiteId(inspectedSiteId);
+      setLifecycleFilter('all');
+      setInspectedSiteId(null);
+    }
+  }, [inspectedSiteId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibleSites = sites.filter(
+    (s) => lifecycleFilter === 'all' || s.status === lifecycleFilter
+  );
+  const activeSiteCount = sites.filter((s) => s.status === 'active').length;
 
   const selectedSite = sites.find((s) => s.id === selectedSiteId) || sites[0];
 
@@ -52,7 +88,7 @@ export const SitesView: React.FC = () => {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-black text-slate-900 tracking-tight">Work Sites & Stations</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs border border-indigo-200 font-mono">
-              {sites.length} Active Sites
+              {activeSiteCount} Active · {sites.length} Total
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -70,9 +106,33 @@ export const SitesView: React.FC = () => {
         </button>
       </div>
 
+      {/* Lifecycle filter — a retired site stays visible so historical records resolve */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Site lifecycle</span>
+        {(['all', 'active', 'suspended', 'retired'] as const).map((option) => {
+          const isOn = lifecycleFilter === option;
+          const count =
+            option === 'all' ? sites.length : sites.filter((s) => s.status === option).length;
+          return (
+            <button
+              key={option}
+              id={`site-lifecycle-filter-${option}`}
+              onClick={() => setLifecycleFilter(option)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                isOn
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {option === 'all' ? 'All Sites' : SITE_STATUS_LABEL[option]} · {count}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Sites Card Selector Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {sites.map((site) => {
+        {visibleSites.map((site) => {
           const isSelected = selectedSite?.id === site.id;
           const assignedCount = workers.filter((w) => w.normalSiteId === site.id).length;
           const presentAtSite = attendance.filter(
@@ -108,6 +168,18 @@ export const SitesView: React.FC = () => {
                   }`}
                 >
                   {site.code}
+                </span>
+              </div>
+
+              <div className="mb-1">
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    isSelected
+                      ? 'bg-slate-800/80 text-slate-200 border-slate-700'
+                      : SITE_STATUS_BADGE[site.status]
+                  }`}
+                >
+                  {SITE_STATUS_LABEL[site.status]}
                 </span>
               </div>
 
@@ -162,8 +234,8 @@ export const SitesView: React.FC = () => {
                 <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-mono text-xs font-bold">
                   Code: {selectedSite.code}
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                  {selectedSite.status.toUpperCase()}
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${SITE_STATUS_BADGE[selectedSite.status]}`}>
+                  {SITE_STATUS_LABEL[selectedSite.status]}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
@@ -203,6 +275,21 @@ export const SitesView: React.FC = () => {
               >
                 <span>Today's Attendance</span>
                 <ExternalLink className="w-3 h-3" />
+              </button>
+
+              {/* Lifecycle action: retiring keeps the site for historical resolution */}
+              <button
+                id="site-lifecycle-toggle-btn"
+                onClick={() =>
+                  updateSite(selectedSite.id, {
+                    status: selectedSite.status === 'retired' ? 'active' : 'retired',
+                  })
+                }
+                className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors"
+              >
+                <span>
+                  {selectedSite.status === 'retired' ? 'Reactivate Site' : 'Retire Site'}
+                </span>
               </button>
             </div>
           </div>

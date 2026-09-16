@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { effectiveArrival, effectiveDeparture } from '../../utils/attendance';
+import { sessionWorkerIds } from '../../types';
 import { useKlockit } from '../../context/KlockitContext';
 import {
   X,
@@ -6,8 +8,6 @@ import {
   Building2,
   Calendar,
   Clock,
-  Mail,
-  Phone,
   ShieldCheck,
   AlertTriangle,
   History,
@@ -29,30 +29,40 @@ export const WorkerProfileModal: React.FC = () => {
     exceptions,
     updateWorker,
     setInspectedExceptionId,
+    setInspectedSessionId,
     showToast,
   } = useKlockit();
 
+  // All hooks run in stable order on every render — nothing conditional above them.
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'history'>('overview');
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [normalSiteId, setNormalSiteId] = useState('');
+  const [workPatternId, setWorkPatternId] = useState('');
+
+  const worker = inspectedWorkerId ? workers.find((w) => w.id === inspectedWorkerId) : undefined;
+
+  // Sync the edit form whenever a different Worker is inspected.
+  React.useEffect(() => {
+    if (worker) {
+      setName(worker.name);
+      setRole(worker.role);
+      setNormalSiteId(worker.normalSiteId);
+      setWorkPatternId(worker.workPatternId);
+      setIsEditing(false);
+    }
+  }, [worker?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!inspectedWorkerId) return null;
-  const worker = workers.find((w) => w.id === inspectedWorkerId);
   if (!worker) return null;
 
   const normalSite = sites.find((s) => s.id === worker.normalSiteId);
   const pattern = patterns.find((p) => p.id === worker.workPatternId);
 
-  // Edit state
-  const [name, setName] = useState(worker.name);
-  const [role, setRole] = useState(worker.role);
-  const [email, setEmail] = useState(worker.email);
-  const [phone, setPhone] = useState(worker.phone);
-  const [normalSiteId, setNormalSiteId] = useState(worker.normalSiteId);
-  const [workPatternId, setWorkPatternId] = useState(worker.workPatternId);
-
-  // Filtered sessions and attendance
+  // Filtered sessions and attendance (session-first model: Worker is a member)
   const upcomingSessions = workSessions
-    .filter((ws) => ws.workerId === worker.id)
+    .filter((ws) => sessionWorkerIds(ws).includes(worker.id))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const workerAttendance = attendance
@@ -67,8 +77,6 @@ export const WorkerProfileModal: React.FC = () => {
     updateWorker(worker.id, {
       name,
       role,
-      email,
-      phone,
       normalSiteId,
       workPatternId,
     });
@@ -227,22 +235,13 @@ export const WorkerProfileModal: React.FC = () => {
                     <p className="font-bold text-slate-900 text-sm">{worker.name}</p>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-slate-500">Role / Designation</span>
+                    <span className="text-slate-500">Role at site</span>
                     <p className="font-bold text-slate-900 text-sm">{worker.role}</p>
+                    <p className="text-[11px] text-slate-400">Used to recognise who is present — not an HR job title.</p>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-slate-500">Email Address</span>
-                    <p className="font-medium text-slate-900 flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      {worker.email}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-slate-500">Contact Telephone</span>
-                    <p className="font-medium text-slate-900 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      {worker.phone}
-                    </p>
+                    <span className="text-slate-500">Worker reference</span>
+                    <p className="font-mono font-bold text-slate-900 text-sm">{worker.workerRef}</p>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                     <span className="text-slate-500">Assigned Normal Site</span>
@@ -271,31 +270,11 @@ export const WorkerProfileModal: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Role</label>
+                      <label className="block font-semibold text-slate-700 mb-1">Role at site</label>
                       <input
                         type="text"
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Phone</label>
-                      <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
                       />
                     </div>
@@ -367,7 +346,7 @@ export const WorkerProfileModal: React.FC = () => {
               <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-indigo-950">Current Recurring Pattern:</span>
                 <p className="text-indigo-800 text-[11px]">
-                  {pattern?.name || 'Standard Full-Time (Mon-Fri 08:00 - 17:00)'}.
+                  {pattern?.name || 'Standard Full-Time'}.
                   Individual sessions below reflect actual scheduled dates and can be adjusted independently.
                 </p>
               </div>
@@ -382,8 +361,17 @@ export const WorkerProfileModal: React.FC = () => {
                   <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
                     {upcomingSessions.map((sess) => {
                       const sessSite = sites.find((s) => s.id === sess.siteId);
+                      const coAssigned = sessionWorkerIds(sess).length;
                       return (
-                        <div key={sess.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
+                        <button
+                          key={sess.id}
+                          onClick={() => {
+                            setInspectedWorkerId(null);
+                            setInspectedSessionId(sess.id);
+                          }}
+                          title="Open session detail"
+                          className="w-full p-3 bg-white flex items-center justify-between text-xs hover:bg-indigo-50/50 text-left transition-colors"
+                        >
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-900">{sess.date}</span>
@@ -397,14 +385,16 @@ export const WorkerProfileModal: React.FC = () => {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-500">
+                              {sess.label ? <strong className="text-slate-700">{sess.label} · </strong> : ''}
                               Site: <strong className="text-slate-700">{sessSite?.name}</strong>
+                              {` · ${coAssigned} Worker${coAssigned === 1 ? '' : 's'}`}
                               {sess.notes ? ` · Note: ${sess.notes}` : ''}
                             </p>
                           </div>
                           <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                             {sess.status}
                           </span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -432,14 +422,14 @@ export const WorkerProfileModal: React.FC = () => {
                             <span className="font-medium text-slate-600">{recSite?.name}</span>
                           </div>
                           <div className="text-[11px] text-slate-500 mt-0.5">
-                            Arrival: <strong className="text-indigo-700 font-mono">{rec.arrivalTime || 'None'}</strong>
+                            Arrival: <strong className="text-indigo-700 font-mono">{effectiveArrival(rec) || rec.arrivalTime || 'None'}</strong>
                             {rec.arrivalMethod && ` (${rec.arrivalMethod.toUpperCase()})`}
                             {' · '}
-                            Departure: <strong className="text-slate-800 font-mono">{rec.departureTime || 'Not recorded'}</strong>
+                            Departure: <strong className="text-slate-800 font-mono">{effectiveDeparture(rec) || rec.departureTime || 'Not recorded'}</strong>
                           </div>
-                          {rec.managerCorrection && (
+                          {rec.corrections && rec.corrections.length > 0 && (
                             <p className="text-[10px] text-indigo-600 mt-1">
-                              Correction: {rec.managerCorrection.reason}
+                              Correction: {rec.corrections[rec.corrections.length - 1].reason}
                             </p>
                           )}
                         </div>

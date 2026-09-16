@@ -10,18 +10,19 @@ import { ExceptionsView } from './components/exceptions/ExceptionsView';
 import { AttendanceHistoryView } from './components/history/AttendanceHistoryView';
 import { OrganisationSettingsView } from './components/settings/OrganisationSettingsView';
 import { WorkerWorkspace } from './components/worker-portal/WorkerWorkspace';
+import { OperatorExperience } from './components/operator/OperatorExperience';
+import { OperatorProvider } from './context/OperatorContext';
+import { PrototypeControls } from './components/prototype/PrototypeControls';
 import { SiteQrModal } from './components/modals/SiteQrModal';
 import { WorkerProfileModal } from './components/modals/WorkerProfileModal';
+import { ExceptionInvestigationModal } from './components/modals/ExceptionInvestigationModal';
+import { SessionDetailModal } from './components/modals/SessionDetailModal';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const {
     currentRole,
     activeManagerTab,
-    siteQrModalSiteId,
-    setSiteQrModalSiteId,
-    inspectedWorkerId,
-    setInspectedWorkerId,
     toasts,
     dismissToast,
   } = useKlockit();
@@ -48,6 +49,13 @@ const MainLayout: React.FC = () => {
             {activeManagerTab === 'settings' && <OrganisationSettingsView />}
           </main>
         </div>
+      ) : currentRole === 'operator' ? (
+        /* Klockit Operator control plane — internal platform administration */
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+          <OperatorProvider>
+            <OperatorExperience />
+          </OperatorProvider>
+        </main>
       ) : (
         /* Worker Dedicated Attendance Space */
         <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
@@ -55,16 +63,20 @@ const MainLayout: React.FC = () => {
         </main>
       )}
 
-      {/* Global Modals */}
-      <SiteQrModal
-        siteId={siteQrModalSiteId}
-        onClose={() => setSiteQrModalSiteId(null)}
-      />
+      {/* Global Modals (Manager / Worker product surfaces) */}
+      <SiteQrModal />
 
-      <WorkerProfileModal
-        workerId={inspectedWorkerId}
-        onClose={() => setInspectedWorkerId(null)}
-      />
+      <WorkerProfileModal />
+
+      {/* Shared inspector: Investigate from Today, Workers, Needs Attention or
+          Exceptions all open this same experience immediately. */}
+      <ExceptionInvestigationModal />
+
+      {/* Shared session management: Planning, Today and Worker schedule drill-downs */}
+      <SessionDetailModal />
+
+      {/* Prototype-only controls — clearly separated from the product UI */}
+      <PrototypeControls />
 
       {/* Floating Toast Notification Stack */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none">

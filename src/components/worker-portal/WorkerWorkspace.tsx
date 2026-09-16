@@ -31,7 +31,6 @@ export const WorkerWorkspace: React.FC = () => {
     setSelectedWorkerId,
     recordWorkerArrival,
     recordWorkerDeparture,
-    setCurrentRole,
   } = useKlockit();
 
   const [activeWorkerTab, setActiveWorkerTab] = useState<'workspace' | 'schedule' | 'history'>('workspace');
@@ -118,16 +117,9 @@ export const WorkerWorkspace: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-            Prototype Demo
+          <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+            Viewing as {worker.name}
           </span>
-          <button
-            onClick={() => setCurrentRole('manager')}
-            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2.5 py-1.5 rounded-xl bg-indigo-50 border border-indigo-100 transition-colors"
-            title="Switch back to Manager Workspace in this interactive prototype"
-          >
-            Exit to Manager
-          </button>
         </div>
       </div>
 
@@ -168,15 +160,15 @@ export const WorkerWorkspace: React.FC = () => {
         </button>
       </div>
 
-      {/* Warning if unclosed departure from previous session */}
+      {/* Notice when an earlier day is still open because departure was never recorded */}
       {missingYesterday && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-5 text-xs text-amber-950 space-y-2 shadow-2xs">
           <div className="flex items-center gap-2 font-bold text-amber-900 text-sm">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-            <span>Departure Not Recorded for Previous Shift</span>
+            <span>Departure not recorded for an earlier day</span>
           </div>
           <p className="text-amber-900 leading-relaxed text-xs">
-            You arrived on <strong>{missingYesterday.date}</strong> at {missingYesterday.arrivalTime}, but no departure was recorded when your shift ended. 
+            You arrived on <strong>{missingYesterday.date}</strong> at {missingYesterday.arrivalTime}, but no departure was recorded when your expected work ended. 
             Your Manager has been notified to verify your actual departure time.
           </p>
         </div>
@@ -211,7 +203,7 @@ export const WorkerWorkspace: React.FC = () => {
               ) : isCompleted ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                  Shift Completed
+                  Day complete
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
@@ -260,38 +252,38 @@ export const WorkerWorkspace: React.FC = () => {
               </div>
             )}
 
-            {/* If presence confirmed via trusted QR code */}
+            {/* Present state */}
             {isPresent && (
               <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-xs space-y-2">
                 <div className="flex items-center justify-between text-emerald-950 font-bold">
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    Presence Confirmed
+                    Presence recorded
                   </span>
-                  <span className="font-mono text-emerald-700">{todayAttendance?.arrivalTime} Logged</span>
+                  <span className="font-mono text-emerald-700">{todayAttendance?.arrivalTime} recorded</span>
                 </div>
                 <p className="text-emerald-800 text-[11px]">
-                  Physical presence verified via Site QR scan at {sessionSite?.name || normalSite?.name}.
+                  Arrival recorded with the Site QR at {sessionSite?.name || normalSite?.name}.
                 </p>
               </div>
             )}
 
-            {/* If completed */}
+            {/* Completed state */}
             {isCompleted && (
               <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl text-xs space-y-2">
                 <div className="flex items-center justify-between text-blue-950 font-bold">
-                  <span>Work Session Concluded</span>
+                  <span>Day complete</span>
                   <span className="font-mono text-blue-800">
                     {todayAttendance?.arrivalTime} – {todayAttendance?.departureTime}
                   </span>
                 </div>
                 <p className="text-blue-800 text-[11px]">
-                  Thank you! Your attendance record has been finalized.
+                  Thank you — your arrival and departure are both recorded.
                 </p>
               </div>
             )}
 
-            {/* PRIMARY ACTION BUTTONS */}
+            {/* Primary actions */}
             <div className="pt-2">
               {!isPresent && !isPendingReview && !isCompleted && (
                 <div className="space-y-3">
@@ -335,7 +327,7 @@ export const WorkerWorkspace: React.FC = () => {
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
-              <h3 className="font-bold text-sm text-slate-900">Upcoming Planned Shifts</h3>
+              <h3 className="font-bold text-sm text-slate-900">Upcoming expected work</h3>
               <span className="text-xs text-slate-400">Next 14 Days</span>
             </div>
           </div>
@@ -383,8 +375,8 @@ export const WorkerWorkspace: React.FC = () => {
       {activeWorkerTab === 'history' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <h3 className="font-bold text-sm text-slate-900">Recent Attendance History</h3>
-            <span className="text-xs text-slate-400">Verified Presence Logs</span>
+            <h3 className="font-bold text-sm text-slate-900">My recent attendance</h3>
+            <span className="text-xs text-slate-400">Arrival and departure records</span>
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -422,9 +414,9 @@ export const WorkerWorkspace: React.FC = () => {
                     </span>
                   </div>
 
-                  {rec.managerCorrection && (
+                  {rec.corrections && rec.corrections.length > 0 && (
                     <p className="text-[10px] text-indigo-600 mt-1">
-                      Manager Verified: {rec.managerCorrection.reason}
+                      Manager Verified: {rec.corrections[rec.corrections.length - 1].reason}
                     </p>
                   )}
                 </div>
