@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { OperatorTab } from '../../context/KlockitContext';
 import { useOperator } from '../../context/OperatorContext';
 import type { OperatorOrgStatus } from '../../types/operator';
+import { OPERATOR_ORG_USAGE, OPERATOR_PLATFORM_HEALTH, buildAdoptionSignals } from '../../data/operatorUsage';
 
 export const OperatorOrganisationDetail: React.FC<{
   orgId: string;
@@ -36,6 +37,13 @@ export const OperatorOrganisationDetail: React.FC<{
   const orgUsers = users.filter((u) => u.organisationId === org.id);
   const orgIncidents = incidents.filter((i) => i.relatedOrgId === org.id && i.status !== 'resolved');
   const orgAudit = audit.filter((a) => a.organisationId === org.id || a.organisationName === org.name).slice(0, 6);
+  const orgUsage = OPERATOR_ORG_USAGE.find((u) => u.orgId === org.id);
+  const orgSignals = buildAdoptionSignals(
+    [{ id: org.id, name: org.name, commercialState: org.commercialState, supportOpen: org.supportOpen }],
+    OPERATOR_ORG_USAGE,
+    users.filter((u) => u.organisationId === org.id && u.inviteState === 'invited').map((u) => ({ organisationId: u.organisationId })),
+  );
+  const orgHealthNotes = OPERATOR_PLATFORM_HEALTH.filter((h) => h.affectedOrgs?.includes(org.name));
 
   const askConfirm = (title: string, consequence: string, action: () => void, requireReason = true) => {
     setConfirm({ title, consequence, action, requireReason });
@@ -75,6 +83,8 @@ export const OperatorOrganisationDetail: React.FC<{
           <button onClick={() => onJump('users', { userSearch: org.name })} className="font-semibold text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50">Users</button>
           <button onClick={() => onJump('subscriptions', { orgId: org.id })} className="font-semibold text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50">Subscription</button>
           <button onClick={() => onJump('onboarding', { orgId: org.id })} className="font-semibold text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50">Onboarding</button>
+          <button onClick={() => onJump('operations', { orgId: org.id })} className="font-semibold text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50">Operations</button>
+          <button onClick={() => onJump('usage')} className="font-semibold text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50">Usage</button>
           <button onClick={() => onJump('audit', { auditSearch: org.name })} className="font-semibold text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-50">Audit</button>
         </div>
       </div>
@@ -112,6 +122,7 @@ export const OperatorOrganisationDetail: React.FC<{
             ))}
           </ul>
           <p><strong className="text-slate-900">Expected work:</strong> {org.sessionsSummary}</p>
+          <p><strong className="text-slate-900">Workforce & planning:</strong> {org.workers} Workers · {org.sites} Sites · {org.onboardingProgress}% onboarding complete</p>
           <p><strong className="text-slate-900">Capacity:</strong> {org.capacity}</p>
           <p><strong className="text-slate-900">Commercial:</strong> {org.planSummary} · {org.commercialState.replace('_', ' ')} · review {org.renewalDate}</p>
           <p className="text-[11px] text-slate-500">{org.commercialNote}</p>
@@ -143,6 +154,46 @@ export const OperatorOrganisationDetail: React.FC<{
           </div>
           <p className="mt-2 text-[11px] text-slate-600"><strong className="text-slate-900">Recommended next step:</strong> {org.nextStep}</p>
         </div>
+      </div>
+
+      {/* Complete customer view: usage, integrity, signals */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Usage & attendance integrity</h3>
+          <button onClick={() => onJump('usage')} className="text-[11px] font-bold text-indigo-600 border border-indigo-200 rounded-lg px-2 py-1">Usage & health →</button>
+        </div>
+        {!orgUsage ? (
+          <p className="text-xs text-slate-500">No usage aggregates for this organisation yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Sessions (mo)</p><p className="font-bold text-slate-900">{orgUsage.sessionsSupportedMonth} supported · {orgUsage.completedMonth} done</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Unresolved</p><p className="font-bold text-slate-900">{orgUsage.unresolvedPct}%</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">QR / manual</p><p className="font-bold text-slate-900">{orgUsage.qrSharePct}% / {orgUsage.manualSharePct}%</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Correction rate</p><p className="font-bold text-slate-900">{orgUsage.correctionRatePct}%</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Active W / S</p><p className="font-bold text-slate-900">{orgUsage.activeWorkers} Workers · {orgUsage.activeSites} Sites</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Last meaningful usage</p><p className="font-bold text-slate-900">{orgUsage.lastMeaningfulUsage}</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Onboarding</p><p className="font-bold text-slate-900">{orgUsage.onboardingCompletionPct}% · {orgUsage.trialToActive}</p></div>
+            <div className="border border-slate-100 rounded-xl px-3 py-2"><p className="text-[10px] uppercase text-slate-500 font-bold">Trend</p><p className="font-bold text-slate-900">{orgUsage.trend} — {orgUsage.trendNote}</p></div>
+          </div>
+        )}
+        {orgSignals.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {orgSignals.map((s) => (
+              <p key={s.id} className="text-[11px] text-slate-600 bg-indigo-50/60 border border-indigo-100 rounded-lg px-2.5 py-1.5">
+                <strong className="text-indigo-900">{s.kind.replace('_', ' ')} prompt:</strong> {s.prompt} <span className="text-slate-400">({s.evidence})</span>
+              </p>
+            ))}
+          </div>
+        )}
+        {orgHealthNotes.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {orgHealthNotes.map((h) => (
+              <p key={h.id} className="text-[11px] text-slate-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                <strong className="text-amber-900">Platform health — {h.area} ({h.status}):</strong> {h.detail} {h.recovery ? `Recovery: ${h.recovery}` : ''}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       {orgIncidents.length > 0 && (

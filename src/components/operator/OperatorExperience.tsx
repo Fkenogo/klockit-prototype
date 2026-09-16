@@ -2,6 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { useKlockit, type OperatorTab } from '../../context/KlockitContext';
 import { useOperator } from '../../context/OperatorContext';
 import type { OperatorCommercialState } from '../../types/operator';
+import {
+  OPERATOR_USAGE_WEEKS,
+  OPERATOR_ORG_USAGE,
+  OPERATOR_PLATFORM_HEALTH,
+  buildAdoptionSignals,
+} from '../../data/operatorUsage';
 import { OperatorOrganisationDetail } from './OperatorOrganisationDetail';
 import {
   Building2,
@@ -117,6 +123,7 @@ export const OperatorExperience: React.FC = () => {
 
   const tabs = [
     { id: 'overview', label: 'Platform overview' },
+    { id: 'usage', label: 'Usage & health' },
     { id: 'organisations', label: 'Organisations' },
     { id: 'users', label: 'Users and access' },
     { id: 'subscriptions', label: 'Subscriptions' },
@@ -203,6 +210,24 @@ export const OperatorExperience: React.FC = () => {
   const attentionOrgs = organisations.filter((o) => o.attention);
   const openIncidents = incidents.filter((i) => i.status !== 'resolved');
   const countries = [...new Set(organisations.map((o) => o.country))];
+
+  // Usage & Health intelligence (synthetic aggregates — see operatorUsage.ts)
+  const usageThisWeek = OPERATOR_USAGE_WEEKS[OPERATOR_USAGE_WEEKS.length - 1];
+  const usageLastWeek = OPERATOR_USAGE_WEEKS[OPERATOR_USAGE_WEEKS.length - 2];
+  const usageByOrgId = new Map(OPERATOR_ORG_USAGE.map((u) => [u.orgId, u]));
+  const pendingInviteOrgs = users.filter((u) => u.inviteState === 'invited').map((u) => ({ organisationId: u.organisationId }));
+  const adoptionSignals = buildAdoptionSignals(organisations, OPERATOR_ORG_USAGE, pendingInviteOrgs);
+  const unresolvedRate = (w: typeof usageThisWeek) => Math.round((w.sessionsUnresolved / Math.max(1, w.sessionsExpected)) * 100);
+  const inviteRate = (w: typeof usageThisWeek) => Math.round((w.invitesAccepted / Math.max(1, w.invitesSent)) * 100);
+  const deltaChip = (cur: number, prev: number, invert = false, suffix = '') => {
+    const d = cur - prev;
+    const good = invert ? d <= 0 : d >= 0;
+    return (
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
+        {d > 0 ? `+${d}` : `${d}`}{suffix} vs last week
+      </span>
+    );
+  };
 
   const statusBadge = (status: string) => {
     if (status === 'active') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -346,6 +371,173 @@ export const OperatorExperience: React.FC = () => {
                 ))}
               </ul>
               <button onClick={() => setActiveOperatorTab('audit')} className="mt-3 text-[11px] font-bold text-indigo-600">Open full audit history →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeOperatorTab === 'usage' && (
+        <div className="space-y-4">
+          <p className="text-[11px] text-slate-500">
+            Can the Operator understand and run the whole platform from here? Aggregates only — organisation-level
+            at most. Routine customer attendance stays Manager business.
+          </p>
+
+          {/* Platform-level indicators: this week vs last week */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Sessions expected</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{usageThisWeek.sessionsExpected}</p>
+              <div className="mt-1">{deltaChip(usageThisWeek.sessionsExpected, usageLastWeek.sessionsExpected)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Planned Work Sessions across live orgs</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Sessions completed</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{usageThisWeek.sessionsCompleted}</p>
+              <div className="mt-1">{deltaChip(usageThisWeek.sessionsCompleted, usageLastWeek.sessionsCompleted)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Attendance sessions closed cleanly</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Unresolved-session rate</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{unresolvedRate(usageThisWeek)}%</p>
+              <div className="mt-1">{deltaChip(unresolvedRate(usageThisWeek), unresolvedRate(usageLastWeek), true, 'pp')}</div>
+              <p className="text-[11px] text-slate-500 mt-1">{usageThisWeek.sessionsUnresolved} sessions need Manager close-out</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">QR vs manual-code</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{usageThisWeek.qrArrivals} <span className="text-sm font-bold text-slate-400">/ {usageThisWeek.manualArrivals}</span></p>
+              <div className="mt-1">{deltaChip(usageThisWeek.manualArrivals, usageLastWeek.manualArrivals, true)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Manual codes need Manager review — QR-first matters</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Manager corrections</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{usageThisWeek.managerCorrections}</p>
+              <div className="mt-1">{deltaChip(usageThisWeek.managerCorrections, usageLastWeek.managerCorrections, true)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Audited corrections, evidence preserved</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Invitation acceptance</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{inviteRate(usageThisWeek)}%</p>
+              <div className="mt-1">{deltaChip(usageThisWeek.invitesAccepted, usageLastWeek.invitesAccepted)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">{usageThisWeek.invitesAccepted} of {usageThisWeek.invitesSent} invitations accepted</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Support cases</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{usageThisWeek.supportCases}</p>
+              <div className="mt-1">{deltaChip(usageThisWeek.supportCases, usageLastWeek.supportCases, true)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Open + resolved support workload</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 font-semibold">Process failures</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{usageThisWeek.processFailures}</p>
+              <div className="mt-1">{deltaChip(usageThisWeek.processFailures, usageLastWeek.processFailures, true)}</div>
+              <p className="text-[11px] text-slate-500 mt-1">Unresolved platform/process failures need an owner</p>
+            </div>
+          </div>
+
+          {/* 6-week trend */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <h2 className="text-sm font-bold text-slate-900">Six-week trend — completed vs expected</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">Is adoption growing and integrity holding?</p>
+            <div className="mt-3 flex items-end gap-2 h-36">
+              {OPERATOR_USAGE_WEEKS.map((w) => {
+                const max = Math.max(...OPERATOR_USAGE_WEEKS.map((x) => x.sessionsExpected));
+                const hExp = Math.round((w.sessionsExpected / max) * 100);
+                const hDone = Math.round((w.sessionsCompleted / max) * 100);
+                return (
+                  <div key={w.week} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex items-end justify-center gap-1 h-24">
+                      <div title={`Expected ${w.sessionsExpected}`} className="w-4 rounded-t bg-slate-200" style={{ height: `${hExp}%` }} />
+                      <div title={`Completed ${w.sessionsCompleted}`} className="w-4 rounded-t bg-indigo-500" style={{ height: `${hDone}%` }} />
+                    </div>
+                    <p className="text-[9px] text-slate-500">{w.week.split(' ')[0]}</p>
+                    <p className="text-[9px] font-bold text-slate-700">{Math.round((w.sessionsCompleted / Math.max(1, w.sessionsExpected)) * 100)}%</p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex gap-4 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-slate-300 inline-block" /> Expected</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-indigo-500 inline-block" /> Completed</span>
+            </div>
+          </div>
+
+          {/* Organisation usage health */}
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h2 className="text-sm font-bold text-slate-900">Organisation usage health</h2>
+              <p className="text-[11px] text-slate-500">Who needs support? Select a row for the complete customer view.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px]">
+                  <tr>
+                    <th className="text-left px-4 py-2.5">Organisation</th>
+                    <th className="text-left px-4 py-2.5">Sessions (mo)</th>
+                    <th className="text-left px-4 py-2.5">Unresolved</th>
+                    <th className="text-left px-4 py-2.5">QR / manual</th>
+                    <th className="text-left px-4 py-2.5">Last usage</th>
+                    <th className="text-left px-4 py-2.5">Trend</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {organisations.map((o) => {
+                    const u = usageByOrgId.get(o.id);
+                    if (!u) return null;
+                    return (
+                      <tr key={o.id} className="hover:bg-indigo-50/40 cursor-pointer" onClick={() => { setSelectedOrgId(o.id); setActiveOperatorTab('organisations'); }}>
+                        <td className="px-4 py-2.5 font-bold text-slate-900">{o.name}<p className="text-[11px] font-normal text-slate-500">{o.commercialState.replace('_', ' ')} · {u.trialToActive}</p></td>
+                        <td className="px-4 py-2.5">{u.sessionsSupportedMonth} supported · {u.completedMonth} done</td>
+                        <td className="px-4 py-2.5"><span className={`font-bold ${u.unresolvedPct >= 25 ? 'text-amber-700' : 'text-slate-700'}`}>{u.unresolvedPct}%</span></td>
+                        <td className="px-4 py-2.5">{u.qrSharePct}% / {u.manualSharePct}%</td>
+                        <td className="px-4 py-2.5 text-slate-600">{u.lastMeaningfulUsage}</td>
+                        <td className="px-4 py-2.5"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${u.trend === 'up' ? 'bg-emerald-50 text-emerald-700' : u.trend === 'down' ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>{u.trend}</span><p className="text-[11px] text-slate-500 mt-0.5">{u.trendNote}</p></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Adoption & support signals */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <h2 className="text-sm font-bold text-slate-900">Adoption & support signals</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">Prompts for Operator support — never judgements about the customer.</p>
+            <div className="mt-3 space-y-2">
+              {adoptionSignals.map((s) => (
+                <div key={s.id} className="border border-slate-200 rounded-xl px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">{s.orgName} <span className="ml-1 text-[10px] font-semibold text-indigo-600">{s.kind.replace('_', ' ')}</span></p>
+                    <p className="text-[11px] text-slate-600 mt-0.5">{s.prompt}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{s.evidence}</p>
+                  </div>
+                  <button onClick={() => { setSelectedOrgId(s.orgId); setActiveOperatorTab('organisations'); }} className="text-[11px] font-bold text-indigo-600 border border-indigo-200 rounded-lg px-2.5 py-1.5">Open customer view</button>
+                </div>
+              ))}
+              {adoptionSignals.length === 0 && <p className="text-xs text-slate-500">No signals right now.</p>}
+            </div>
+          </div>
+
+          {/* Platform health */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Platform health</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">Is Klockit itself healthy? Business-operation level — not an engineering log.</p>
+              </div>
+              <button onClick={() => setActiveOperatorTab('operations')} className="text-[11px] font-bold text-indigo-600 border border-indigo-200 rounded-lg px-2.5 py-1.5">Open operations →</button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+              {OPERATOR_PLATFORM_HEALTH.map((h) => (
+                <div key={h.id} className="border border-slate-200 rounded-xl px-3 py-2.5">
+                  <p className="text-xs font-bold text-slate-900">{h.area} <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${h.status === 'healthy' ? 'bg-emerald-50 text-emerald-700' : h.status === 'degraded' ? 'bg-amber-50 text-amber-800' : 'bg-rose-50 text-rose-700'}`}>{h.status}</span></p>
+                  <p className="text-[11px] text-slate-600 mt-0.5">{h.detail}</p>
+                  {h.affectedOrgs && <p className="text-[11px] text-slate-500 mt-0.5">Affected: {h.affectedOrgs.join(', ')}</p>}
+                  {h.recovery && <p className="text-[11px] text-slate-500 mt-0.5">Recovery: {h.recovery}</p>}
+                  <p className="text-[10px] text-slate-400 mt-0.5">Updated {h.updated}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

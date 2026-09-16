@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
+import { sessionWorkerIds } from '../../types';
 import {
   effectiveArrival,
   effectiveDeparture,
@@ -42,6 +43,7 @@ export const TodayAttendanceView: React.FC = () => {
     setSelectedSiteFilter,
     setInspectedWorkerId,
     setInspectedExceptionId,
+    setInspectedSessionId,
     setActiveManagerTab,
     recordWorkerDeparture,
   } = useKlockit();
@@ -55,7 +57,7 @@ export const TodayAttendanceView: React.FC = () => {
 
   // Build unified attendance rows for all workers expected or with attendance today
   const rows = workers.map((worker) => {
-    const session = todaySessions.find((s) => s.workerId === worker.id);
+    const session = todaySessions.find((s) => sessionWorkerIds(s).includes(worker.id));
     const attRecord = attendance.find((a) => a.workerId === worker.id && a.date === selectedDate);
     const site = sites.find((s) => s.id === (attRecord?.siteId || session?.siteId || worker.normalSiteId));
 
@@ -428,14 +430,18 @@ export const TodayAttendanceView: React.FC = () => {
                       {/* Expected Hours */}
                       <td className="px-4 py-3.5">
                         {session ? (
-                          <div className="font-mono font-medium text-slate-800">
+                          <button
+                            onClick={() => setInspectedSessionId(session.id)}
+                            title="Open session detail"
+                            className="text-left font-mono font-medium text-slate-800 hover:text-indigo-700 hover:underline"
+                          >
                             {session.startTime} - {session.endTime}
                             {session.isExceptional && (
                               <span className="ml-1.5 text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-sans font-semibold">
                                 Adjusted
                               </span>
                             )}
-                          </div>
+                          </button>
                         ) : (
                           <span className="text-slate-400 italic">Unscheduled</span>
                         )}

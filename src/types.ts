@@ -25,7 +25,7 @@ export interface DayPattern {
 export interface WorkPattern {
   id: string;
   workerId: string;
-  name: string; // e.g. 'Standard 40h Full-Time (Mon-Fri)'
+  name: string; // e.g. 'Standard 40h Full-Time'
   effectiveFrom: string; // YYYY-MM-DD
   schedule: Record<DayOfWeek, DayPattern>;
 }
@@ -42,17 +42,41 @@ export interface Worker {
   workPatternId: string;
 }
 
+export interface SessionHistoryEntry {
+  at: string;
+  actor: string;
+  summary: string;
+}
+
 export interface WorkSession {
   id: string;
-  workerId: string;
+  /** Planned session label, e.g. "Morning café session". Optional for legacy seeds. */
+  label?: string;
+  /** Workers assigned to this planned session. May be empty while being configured. */
+  workerIds?: string[];
+  /** Legacy single-worker field. Read for migration only — use workerIds. */
+  workerId?: string;
   siteId: string;
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
   status: 'scheduled' | 'cancelled' | 'suspended' | 'completed';
+  /** Planning rule this session was generated from, if any. */
+  patternId?: string;
+  /** Groups sessions created together by one recurrence definition. */
+  recurrenceId?: string;
   isExceptional?: boolean; // Modified from default recurring pattern
   notes?: string;
+  /** Append-only management history. Attendance evidence is never rewritten. */
+  history?: SessionHistoryEntry[];
 }
+
+/** Workers on a session, tolerating legacy single-worker records. */
+export const sessionWorkerIds = (s: { workerIds?: string[]; workerId?: string }): string[] => {
+  if (Array.isArray(s.workerIds) && s.workerIds.length > 0) return s.workerIds;
+  if (s.workerId) return [s.workerId];
+  return [];
+};
 
 export type ArrivalMethod = 'qr' | 'manual_code' | 'manager_entry';
 export type DepartureMethod = 'worker' | 'manager_entry';

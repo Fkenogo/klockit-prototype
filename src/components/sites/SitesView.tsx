@@ -43,6 +43,8 @@ export const SitesView: React.FC = () => {
     attendance,
     setSiteQrModalSiteId,
     setInspectedWorkerId,
+    inspectedSiteId,
+    setInspectedSiteId,
     setActiveManagerTab,
     setSelectedSiteFilter,
     updateSite,
@@ -51,6 +53,15 @@ export const SitesView: React.FC = () => {
   const [isAddSiteOpen, setIsAddSiteOpen] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string>(sites[0]?.id || 'site-1');
   const [lifecycleFilter, setLifecycleFilter] = useState<'all' | Site['status']>('all');
+
+  // Global search deep-link: honour a requested Site, then release the request.
+  React.useEffect(() => {
+    if (inspectedSiteId && sites.some((s) => s.id === inspectedSiteId)) {
+      setSelectedSiteId(inspectedSiteId);
+      setLifecycleFilter('all');
+      setInspectedSiteId(null);
+    }
+  }, [inspectedSiteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleSites = sites.filter(
     (s) => lifecycleFilter === 'all' || s.status === lifecycleFilter

@@ -74,7 +74,7 @@ export const INITIAL_PATTERNS: WorkPattern[] = [
   {
     id: 'pat-1',
     workerId: 'worker-1',
-    name: 'Full-Time Day Shift (Mon-Fri 08:00 - 17:00)',
+    name: 'Full-Time Day Shift (08:00 - 17:00)',
     effectiveFrom: '2026-01-01',
     schedule: {
       monday: { isWorking: true, startTime: '08:00', endTime: '17:00' },
@@ -89,7 +89,7 @@ export const INITIAL_PATTERNS: WorkPattern[] = [
   {
     id: 'pat-early',
     workerId: 'worker-2',
-    name: 'Early Logistics Shift (Mon-Fri 06:00 - 14:30)',
+    name: 'Early Logistics Shift (06:00 - 14:30)',
     effectiveFrom: '2026-01-01',
     schedule: {
       monday: { isWorking: true, startTime: '06:00', endTime: '14:30' },
@@ -119,7 +119,7 @@ export const INITIAL_PATTERNS: WorkPattern[] = [
   {
     id: 'pat-late',
     workerId: 'worker-10',
-    name: 'Afternoon Dispatch Shift (Mon-Fri 13:00 - 21:00)',
+    name: 'Afternoon Dispatch Shift (13:00 - 21:00)',
     effectiveFrom: '2026-03-01',
     schedule: {
       monday: { isWorking: true, startTime: '13:00', endTime: '21:00' },
@@ -129,6 +129,21 @@ export const INITIAL_PATTERNS: WorkPattern[] = [
       friday: { isWorking: true, startTime: '13:00', endTime: '21:00' },
       saturday: { isWorking: false, startTime: '13:00', endTime: '21:00' },
       sunday: { isWorking: false, startTime: '13:00', endTime: '21:00' },
+    },
+  },
+  {
+    id: 'pat-weekend',
+    workerId: 'worker-9',
+    name: 'Weekend Logistics Cover (Sat 06:00 - 12:00 · Sun 10:00 - 15:00)',
+    effectiveFrom: '2026-09-01',
+    schedule: {
+      monday: { isWorking: false, startTime: '06:00', endTime: '14:30' },
+      tuesday: { isWorking: false, startTime: '06:00', endTime: '14:30' },
+      wednesday: { isWorking: true, startTime: '06:00', endTime: '14:30' },
+      thursday: { isWorking: true, startTime: '06:00', endTime: '14:30' },
+      friday: { isWorking: false, startTime: '06:00', endTime: '14:30' },
+      saturday: { isWorking: true, startTime: '06:00', endTime: '12:00' },
+      sunday: { isWorking: true, startTime: '10:00', endTime: '15:00' },
     },
   },
 ];
@@ -409,6 +424,55 @@ export const INITIAL_WORK_SESSIONS: WorkSession[] = [
     startTime: '08:30',
     endTime: '17:30',
     status: 'scheduled',
+  },
+
+  // Weekend planned sessions (Sat 19 / Sun 20 Sep 2026) — weekends are normal working days here
+  {
+    id: 'sess-sat-1',
+    label: 'Saturday café cover',
+    workerIds: ['worker-6', 'worker-8'],
+    siteId: 'site-2',
+    date: '2026-09-19',
+    startTime: '08:00',
+    endTime: '14:00',
+    status: 'scheduled',
+    recurrenceId: 'rec-weekend-cafe',
+    notes: 'Weekend counter rotation',
+  },
+  {
+    id: 'sess-sat-2',
+    label: 'Saturday dispatch',
+    workerIds: ['worker-9'],
+    siteId: 'site-3',
+    date: '2026-09-19',
+    startTime: '06:00',
+    endTime: '12:00',
+    status: 'scheduled',
+    patternId: 'pat-weekend',
+  },
+  {
+    id: 'sess-sun-1',
+    label: 'Sunday café cover',
+    workerIds: ['worker-8'],
+    siteId: 'site-2',
+    date: '2026-09-20',
+    startTime: '10:00',
+    endTime: '15:00',
+    status: 'scheduled',
+    recurrenceId: 'rec-weekend-cafe',
+    notes: 'Sunday short cover',
+  },
+  // Planned session still being configured — no Workers assigned yet
+  {
+    id: 'sess-unassigned-1',
+    label: 'Overflow assembly cover',
+    workerIds: [],
+    siteId: 'site-1',
+    date: '2026-09-17',
+    startTime: '08:00',
+    endTime: '17:00',
+    status: 'scheduled',
+    notes: 'Awaiting Worker assignment',
   },
 ];
 

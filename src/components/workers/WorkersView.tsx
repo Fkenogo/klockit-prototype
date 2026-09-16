@@ -377,9 +377,12 @@ export const WorkersView: React.FC = () => {
                       {worker.initials}
                     </div>
                     <div>
-                      <h2 className="font-bold text-sm text-slate-900 hover:text-indigo-600 transition-colors">
+                      <button
+                        onClick={() => setInspectedWorkerId(worker.id)}
+                        className="font-bold text-sm text-slate-900 hover:text-indigo-600 transition-colors text-left"
+                      >
                         {worker.name}
-                      </h2>
+                      </button>
                       <p className="text-xs text-slate-500">{worker.role}</p>
                     </div>
                   </div>

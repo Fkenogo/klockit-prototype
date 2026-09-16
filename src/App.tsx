@@ -15,6 +15,8 @@ import { OperatorProvider } from './context/OperatorContext';
 import { PrototypeControls } from './components/prototype/PrototypeControls';
 import { SiteQrModal } from './components/modals/SiteQrModal';
 import { WorkerProfileModal } from './components/modals/WorkerProfileModal';
+import { ExceptionInvestigationModal } from './components/modals/ExceptionInvestigationModal';
+import { SessionDetailModal } from './components/modals/SessionDetailModal';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
@@ -65,6 +67,13 @@ const MainLayout: React.FC = () => {
       <SiteQrModal />
 
       <WorkerProfileModal />
+
+      {/* Shared inspector: Investigate from Today, Workers, Needs Attention or
+          Exceptions all open this same experience immediately. */}
+      <ExceptionInvestigationModal />
+
+      {/* Shared session management: Planning, Today and Worker schedule drill-downs */}
+      <SessionDetailModal />
 
       {/* Prototype-only controls — clearly separated from the product UI */}
       <PrototypeControls />

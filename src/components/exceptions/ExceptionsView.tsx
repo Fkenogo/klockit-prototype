@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useKlockit } from '../../context/KlockitContext';
-import { ExceptionInvestigationModal } from '../modals/ExceptionInvestigationModal';
 import {
   AlertTriangle,
   AlertOctagon,
@@ -274,9 +273,6 @@ export const ExceptionsView: React.FC = () => {
           })
         )}
       </div>
-
-      {/* Modal Inspector */}
-      <ExceptionInvestigationModal />
     </div>
   );
 };

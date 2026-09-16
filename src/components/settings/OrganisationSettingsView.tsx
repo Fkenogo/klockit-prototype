@@ -264,7 +264,7 @@ export const OrganisationSettingsView: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-slate-900">Define Recurring Work Patterns</h4>
                   <p className="text-slate-500 mt-0.5">
-                    Define expected working days (e.g. Mon–Fri 08:00–17:00). Klockit automatically generates expected Work Sessions.
+                    Define expected working days for each day of the week (e.g. Mon–Sun 06:00–14:00, weekends included where worked). Klockit automatically generates expected Work Sessions.
                   </p>
                 </div>
               </div>

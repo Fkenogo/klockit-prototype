@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { effectiveArrival, effectiveDeparture } from '../../utils/attendance';
+import { sessionWorkerIds } from '../../types';
 import { useKlockit } from '../../context/KlockitContext';
 import {
   X,
@@ -28,28 +29,40 @@ export const WorkerProfileModal: React.FC = () => {
     exceptions,
     updateWorker,
     setInspectedExceptionId,
+    setInspectedSessionId,
     showToast,
   } = useKlockit();
 
+  // All hooks run in stable order on every render — nothing conditional above them.
   const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'history'>('overview');
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [normalSiteId, setNormalSiteId] = useState('');
+  const [workPatternId, setWorkPatternId] = useState('');
+
+  const worker = inspectedWorkerId ? workers.find((w) => w.id === inspectedWorkerId) : undefined;
+
+  // Sync the edit form whenever a different Worker is inspected.
+  React.useEffect(() => {
+    if (worker) {
+      setName(worker.name);
+      setRole(worker.role);
+      setNormalSiteId(worker.normalSiteId);
+      setWorkPatternId(worker.workPatternId);
+      setIsEditing(false);
+    }
+  }, [worker?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!inspectedWorkerId) return null;
-  const worker = workers.find((w) => w.id === inspectedWorkerId);
   if (!worker) return null;
 
   const normalSite = sites.find((s) => s.id === worker.normalSiteId);
   const pattern = patterns.find((p) => p.id === worker.workPatternId);
 
-  // Edit state — presence identity only (no HR contact fields in Klockit).
-  const [name, setName] = useState(worker.name);
-  const [role, setRole] = useState(worker.role);
-  const [normalSiteId, setNormalSiteId] = useState(worker.normalSiteId);
-  const [workPatternId, setWorkPatternId] = useState(worker.workPatternId);
-
-  // Filtered sessions and attendance
+  // Filtered sessions and attendance (session-first model: Worker is a member)
   const upcomingSessions = workSessions
-    .filter((ws) => ws.workerId === worker.id)
+    .filter((ws) => sessionWorkerIds(ws).includes(worker.id))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const workerAttendance = attendance
@@ -333,7 +346,7 @@ export const WorkerProfileModal: React.FC = () => {
               <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs space-y-1">
                 <span className="font-bold text-indigo-950">Current Recurring Pattern:</span>
                 <p className="text-indigo-800 text-[11px]">
-                  {pattern?.name || 'Standard Full-Time (Mon-Fri 08:00 - 17:00)'}.
+                  {pattern?.name || 'Standard Full-Time'}.
                   Individual sessions below reflect actual scheduled dates and can be adjusted independently.
                 </p>
               </div>
@@ -348,8 +361,17 @@ export const WorkerProfileModal: React.FC = () => {
                   <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
                     {upcomingSessions.map((sess) => {
                       const sessSite = sites.find((s) => s.id === sess.siteId);
+                      const coAssigned = sessionWorkerIds(sess).length;
                       return (
-                        <div key={sess.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
+                        <button
+                          key={sess.id}
+                          onClick={() => {
+                            setInspectedWorkerId(null);
+                            setInspectedSessionId(sess.id);
+                          }}
+                          title="Open session detail"
+                          className="w-full p-3 bg-white flex items-center justify-between text-xs hover:bg-indigo-50/50 text-left transition-colors"
+                        >
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-900">{sess.date}</span>
@@ -363,14 +385,16 @@ export const WorkerProfileModal: React.FC = () => {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-500">
+                              {sess.label ? <strong className="text-slate-700">{sess.label} · </strong> : ''}
                               Site: <strong className="text-slate-700">{sessSite?.name}</strong>
+                              {` · ${coAssigned} Worker${coAssigned === 1 ? '' : 's'}`}
                               {sess.notes ? ` · Note: ${sess.notes}` : ''}
                             </p>
                           </div>
                           <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                             {sess.status}
                           </span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
